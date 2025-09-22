@@ -17,4 +17,11 @@ colcon build --packages-select youbot_webots_controller
 source install/setup.bash
 
 # 5. Запустите
-ros2 launch youbot_webots_controller youbot_manual.launch.py
+# Terminal 1
+webots src/youbot_webots_controller/worlds/youbot.wbt
+
+# Terminal 2
+ros2 run youbot_webots_controller youbot_ros2_controller
+
+# Terminal 3 
+ros2 run teleop_twist_keyboard teleop_twist_keyboard
