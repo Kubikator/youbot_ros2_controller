@@ -1,48 +1,104 @@
-import os
+# ============================================================================
+# youbot_complete.launch.py - Полный запуск всей системы
+# ============================================================================
+
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess, TimerAction
-from ament_index_python.packages import get_package_share_directory
+import os
+
 
 def generate_launch_description():
+    # Аргументы запуска
+    world_file_arg = DeclareLaunchArgument(
+        'world_file',
+        default_value=PathJoinSubstitution([
+            LaunchConfiguration('package_share', default='youbot_webots_controller'),
+            'worlds',
+            'youbot.wbt'
+        ]),
+        description='Path to Webots world file'
+    )
     
-    package_name = 'youbot_webots_controller'
-    package_share = get_package_share_directory(package_name)
-    
-    # Путь к миру в нашем пакете
-    webots_world = os.path.join(package_share, 'worlds', 'youbot.wbt')
-    
-    # Запуск Webots
+    webots_controller_arg = DeclareLaunchArgument(
+        'webots_controller',
+        default_value='youbot_speed_controller',
+        description='Name of Webots controller'
+    )
+
+    # Webots процесс
     webots_process = ExecuteProcess(
-        cmd=['webots', '--mode=pause', webots_world],
+        cmd=['webots', '--stdout', '--stderr', LaunchConfiguration('world_file')],
+        name='webots',
         output='screen'
     )
     
-    # Узел контроллера youBot (запускаем с задержкой)
-    youbot_controller_node = Node(
-        package=package_name,
-        executable='youbot_ros2_controller',
-        name='youbot_ros2_controller',
-        output='screen',
-    )
+    # Даем время Webots запуститься перед запуском контроллера
+    from launch.actions import TimerAction
     
-    # Запуск контроллера через 5 секунд после старта Webots
-    delayed_controller = TimerAction(
+    # Webots ROS2 контроллер (запускаем с задержкой)
+    webots_controller_process = TimerAction(
         period=5.0,
-        actions=[youbot_controller_node]
+        actions=[
+            ExecuteProcess(
+                cmd=['ros2', 'run', 'youbot_webots_controller', LaunchConfiguration('webots_controller')],
+                name='webots_controller',
+                output='screen'
+            )
+        ]
     )
-    
-    # Узел для управления с клавиатуры
-    teleop_node = Node(
-        package='teleop_twist_keyboard',
-        executable='teleop_twist_keyboard',
-        name='teleop_twist_keyboard',
-        prefix='xterm -e',
-        output='screen'
+
+    # Контроллер мобильной базы (также с задержкой)
+    mobile_base_controller = TimerAction(
+        period=7.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='mobile_base_controller',
+                name='mobile_base_controller',
+                output='screen',
+                parameters=[
+                    {'linear_speed': 0.3},
+                    {'angular_speed': 0.5},
+                    {'safe_distance': 0.5}
+                ]
+            )
+        ]
     )
-    
+
+    # Контроллер манипулятора
+    arm_controller = TimerAction(
+        period=8.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='youbot_arm_controller',
+                name='youbot_arm_controller',
+                output='screen'
+            )
+        ]
+    )
+
+    # Commander (опционально)
+    commander = TimerAction(
+        period=10.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='youbot_commander',
+                name='youbot_commander',
+                output='screen'
+            )
+        ]
+    )
+
     return LaunchDescription([
+        world_file_arg,
+        webots_controller_arg,
         webots_process,
-        delayed_controller,
-        teleop_node,
+        webots_controller_process,
+        mobile_base_controller,
+        arm_controller,
+        commander
     ])

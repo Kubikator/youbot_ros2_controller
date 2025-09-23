@@ -29,9 +29,9 @@ except ImportError as e:
     print(f"Python path: {sys.path}")
     sys.exit(1)
 
-class YouBotROS2Controller(Node):
+class YoubotSpeedController(Node):
     def __init__(self):
-        super().__init__('youbot_ros2_controller')
+        super().__init__('youbot_speed_controller')
         
         self.get_logger().info('Starting YouBot ROS 2 Controller...')
         self.get_logger().info(f'WEBOTS_HOME: {os.environ.get("WEBOTS_HOME")}')
@@ -134,7 +134,7 @@ def main(args=None):
     rclpy.init(args=args)
     
     try:
-        controller = YouBotROS2Controller()
+        controller = YoubotSpeedController()
         controller.run()
     except Exception as e:
         print(f"Failed to start YouBot controller: {e}")
