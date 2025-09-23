@@ -14,7 +14,7 @@ def generate_launch_description():
     world_file_arg = DeclareLaunchArgument(
         'world_file',
         default_value=PathJoinSubstitution([
-            LaunchConfiguration('package_share', default='youbot_webots_controller'),
+            LaunchConfiguration('package_share', default='src/youbot_webots_controller'),
             'worlds',
             'youbot.wbt'
         ]),
