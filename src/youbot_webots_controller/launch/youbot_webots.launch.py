@@ -23,7 +23,7 @@ def generate_launch_description():
     
     webots_controller_arg = DeclareLaunchArgument(
         'webots_controller',
-        default_value='youbot_speed_controller',
+        default_value='webots_ros2_bridge',
         description='Name of Webots controller'
     )
 
@@ -49,14 +49,14 @@ def generate_launch_description():
         ]
     )
 
-    # Контроллер мобильной базы (также с задержкой)
+    # Контроллер мобильной платформы (также с задержкой)
     mobile_base_controller = TimerAction(
         period=7.0,
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='mobile_base_controller',
-                name='mobile_base_controller',
+                executable='platform_velocity_controller',
+                name='platform_velocity_controller',
                 output='screen',
                 parameters=[
                     {'linear_speed': 0.3},
@@ -80,14 +80,14 @@ def generate_launch_description():
         ]
     )
 
-    # Commander (опционально)
-    commander = TimerAction(
-        period=10.0,
+    # Контроллер схвата
+    gripper_controller = TimerAction(
+        period=9.0,
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='youbot_commander',
-                name='youbot_commander',
+                executable='gripper_controller',
+                name='gripper_controller',
                 output='screen'
             )
         ]
@@ -100,5 +100,5 @@ def generate_launch_description():
         webots_controller_process,
         mobile_base_controller,
         arm_controller,
-        commander
+        gripper_controller
     ])

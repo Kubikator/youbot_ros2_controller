@@ -28,10 +28,10 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'youbot_speed_controller = youbot_webots_controller.youbot_speed_controller:main',
-            'mobile_base_controller = youbot_webots_controller.mobile_base_controller:main',
+            'webots_ros2_bridge = youbot_webots_controller.webots_ros2_bridge:main',
+            'platform_velocity_controller = youbot_webots_controller.platform_velocity_controller:main',
             'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller:main',
-            'youbot_commander = youbot_webots_controller.youbot_commander:main',
+            'gripper_controller = youbot_webots_controller.gripper_controller:main',
         ],
     },
 )
