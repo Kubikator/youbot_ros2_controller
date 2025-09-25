@@ -12,6 +12,7 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        ('share/' + package_name + '/ui', glob('ui/*.ui')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*.wbt')),
     ],
@@ -32,6 +33,7 @@ setup(
             'platform_velocity_controller = youbot_webots_controller.platform_velocity_controller:main',
             'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller:main',
             'gripper_controller = youbot_webots_controller.gripper_controller:main',
+            'platform_gui_controller = youbot_webots_controller.platform_gui_controller:main',
         ],
     },
 )
