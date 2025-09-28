@@ -67,6 +67,31 @@ def generate_launch_description():
         ]
     )
 
+    # Одометрия
+    youbot_odometry = TimerAction(
+        period=7.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='youbot_odometry',
+                name='youbot_odometry',
+                output='screen'
+            )
+        ]
+    )
+
+    # youbot_mapping = TimerAction(
+    #     period=8.0,
+    #     actions=[
+    #         Node(
+    #             package='youbot_webots_controller',
+    #             executable='mapping_node',
+    #             name='mapping_node',
+    #             output='screen'
+    #         )
+    #     ]
+    # )
+
     # Контроллер манипулятора
     arm_controller = TimerAction(
         period=8.0,
@@ -99,6 +124,7 @@ def generate_launch_description():
         webots_process,
         webots_controller_process,
         mobile_base_controller,
+        youbot_odometry,
         arm_controller,
         gripper_controller
     ])

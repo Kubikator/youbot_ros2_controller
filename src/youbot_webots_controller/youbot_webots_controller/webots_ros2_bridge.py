@@ -5,7 +5,10 @@ from rclpy.node import Node
 from youbot_webots_controller.webots_ros_bridge.mobile_platform import MobilePlatform
 from youbot_webots_controller.webots_ros_bridge.manipulator import Manipulator
 from youbot_webots_controller.webots_ros_bridge.gripper import Gripper
+from youbot_webots_controller.webots_ros_bridge.lidar import Lidar
+from youbot_webots_controller.webots_ros_bridge.camera import WebotsCamera
 from controller import Robot
+import numpy as np
 
 class WebotsRosBridge(Node):
     def __init__(self):
@@ -27,6 +30,8 @@ class WebotsRosBridge(Node):
         self.mobile_platform = MobilePlatform(self, self.robot)
         self.manipulator = Manipulator(self, self.robot, self.timestep)
         self.gripper = Gripper(self, self.robot, self.timestep)
+        self.lidar = Lidar(self, self.robot, self.timestep)
+        self.camera = WebotsCamera(self, 'camera', 16)       
         
         self.get_logger().info('Webots Ros2 Bridge initialized successfully')
 

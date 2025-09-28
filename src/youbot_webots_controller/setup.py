@@ -16,7 +16,7 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*.wbt')),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'sensor_msgs', 'cv_bridge', 'numpy'],
     zip_safe=True,
     maintainer='egor',
     maintainer_email='egor@todo.todo',
@@ -34,6 +34,7 @@ setup(
             'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller:main',
             'gripper_controller = youbot_webots_controller.gripper_controller:main',
             'platform_gui_controller = youbot_webots_controller.platform_gui_controller:main',
+            'youbot_odometry = youbot_webots_controller.youbot_odometry:main',
         ],
     },
 )
