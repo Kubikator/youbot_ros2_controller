@@ -118,6 +118,18 @@ def generate_launch_description():
         ]
     )
 
+    image_processor = TimerAction(
+        period=9.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='image_processor',
+                name='image_processor',
+                output='screen'
+            )
+        ]
+    )
+
     return LaunchDescription([
         world_file_arg,
         webots_controller_arg,
@@ -126,5 +138,6 @@ def generate_launch_description():
         mobile_base_controller,
         youbot_odometry,
         arm_controller,
-        gripper_controller
+        gripper_controller,
+        image_processor
     ])

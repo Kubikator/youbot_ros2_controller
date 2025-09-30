@@ -6,6 +6,13 @@ from cv_bridge import CvBridge
 import numpy as np
 from controller import Camera
 import time
+import os
+from datetime import datetime
+import cv2
+
+# Используем только стандартный сервис Trigger
+from std_srvs.srv import Trigger
+
 
 class WebotsCamera:
     def __init__(self, node, camera_name='camera', sampling_period=16):
@@ -23,7 +30,14 @@ class WebotsCamera:
         # Параметры трансформации камеры
         self.camera_offset_x = 0.3  # Смещение вперед по X
         self.camera_offset_y = 0.0  # По центру по Y
-        self.camera_offset_z = 0.2  # Высота по Z
+        self.camera_offset_z = 0.1  # Высота по Z
+
+        self.current_image = None
+        self.save_counter = 0
+        self.default_save_dir = "camera_images"  # Папка для сохранения по умолчанию
+        
+        # Создаем папку для сохранения изображений
+        self._create_save_directory()
         
         try:
             # Инициализация камеры через Webots API
@@ -43,14 +57,103 @@ class WebotsCamera:
             raise
         
         self.camera_first_time = True
+        
         # Публикаторы
         self.image_pub = self.node.create_publisher(Image, 'image_raw', 10)
+        
+        # Сервис для сохранения изображений
+        self.save_service = self.node.create_service(
+            Trigger, 
+            'save_image', 
+            self.handle_save_image
+        )
         
         # Таймеры
         self.node.create_timer(1, self.publish_image)
         self.node.create_timer(0.1, self.publish_tf)     # 10 Hz для TF
         
         self.node.get_logger().info('Webots Camera initialized successfully')
+        self.node.get_logger().info('Save image service available: /save_image')
+
+    def _create_save_directory(self):
+        """Создает папку для сохранения изображений если она не существует"""
+        if not os.path.exists(self.default_save_dir):
+            os.makedirs(self.default_save_dir)
+            self.node.get_logger().info(f'Created directory: {self.default_save_dir}')
+
+    def handle_save_image(self, request, response):
+        """
+        Обработчик сервиса Trigger для сохранения текущего изображения
+        """
+        try:
+            if self.current_image is None:
+                response.success = False
+                response.message = "No image available to save"
+                self.node.get_logger().warn("Attempted to save image but no image available")
+                return response
+            
+            # Генерируем имя файла с временной меткой
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # Добавляем миллисекунды
+            filename = f"webots_camera_{timestamp}.png"
+            filepath = os.path.join(self.default_save_dir, filename)
+            
+            # Сохраняем изображение в формате PNG
+            success = cv2.imwrite(filepath, self.current_image)
+            
+            if success:
+                self.save_counter += 1
+                response.success = True
+                response.message = f"Image saved successfully: {filepath}"
+                self.node.get_logger().info(f"Saved image: {filepath}")
+            else:
+                response.success = False
+                response.message = f"Failed to save image: {filepath}"
+                self.node.get_logger().error(f"Failed to save image: {filepath}")
+                
+        except Exception as e:
+            response.success = False
+            response.message = f"Error saving image: {str(e)}"
+            self.node.get_logger().error(f"Error in save_image service: {e}")
+            
+        return response
+
+    def save_current_image(self, filename=None):
+        """
+        Публичный метод для сохранения текущего изображения
+        Можно вызывать из других частей кода
+        """
+        try:
+            if self.current_image is None:
+                self.node.get_logger().warn("No image available to save")
+                return False, "No image available"
+            
+            if filename is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                filename = f"webots_camera_{timestamp}.png"
+                filepath = os.path.join(self.default_save_dir, filename)
+            else:
+                # Добавляем расширение .png если не указано
+                if not filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+                    filename += '.png'
+                filepath = filename
+            
+            # Создаем директорию если нужно
+            os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
+            
+            success = cv2.imwrite(filepath, self.current_image)
+            
+            if success:
+                self.save_counter += 1
+                self.node.get_logger().info(f"Saved image: {filepath}")
+                return True, filepath
+            else:
+                self.node.get_logger().error(f"Failed to save image: {filepath}")
+                return False, f"Failed to save image: {filepath}"
+                
+        except Exception as e:
+            error_msg = f"Error saving image: {str(e)}"
+            self.node.get_logger().error(error_msg)
+            return False, error_msg
 
     def publish_tf(self):
         try:
@@ -151,6 +254,7 @@ class WebotsCamera:
             
             # Конвертируем байты в OpenCV изображение
             cv_image, encoding = self.convert_image(image_data)
+            self.current_image = cv_image
             
             # Конвертируем в ROS2 сообщение
             image_msg = self.bridge.cv2_to_imgmsg(cv_image, encoding=encoding)

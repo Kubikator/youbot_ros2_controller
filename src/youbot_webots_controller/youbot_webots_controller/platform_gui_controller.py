@@ -2,6 +2,8 @@ import sys
 import os
 import rclpy
 from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import Qt
 from PyQt5 import uic
 
 from .qnode import QNode
@@ -34,11 +36,21 @@ class PlatformControllerGui(QWidget):
             uic.loadUi(self.ui_file_path, self)
             self.qnode.get_logger().info(f"UI loaded from file: {self.ui_file_path}")
             
+            # Настройка QLabel для отображения изображений
+            if hasattr(self, 'display'):
+                self.display.setAlignment(Qt.AlignCenter)
+                self.display.setScaledContents(True)  # Включаем автомасштабирование
+                #self.display.setMinimumSize(640, 480)
+                self.qnode.get_logger().info("QLabel 'display' configured for image display")
+            
         except Exception as e:
             self.qnode.get_logger().error(f"Failed to initialize UI: {e}")
         
     def setup_connections(self):
         try:
+            # Подключаем сигнал изображения от QNode
+            self.qnode.image_received.connect(self.update_image_display)
+            
             # Кнопки движения (нажатие/отпускание для непрерывного движения)
             if hasattr(self, 'b_forward'):
                 self.qnode.get_logger().info("b_forward connecting to QNode...")
@@ -46,7 +58,6 @@ class PlatformControllerGui(QWidget):
                 self.b_forward.released.connect(self.qnode.stop_robot)
                 self.qnode.get_logger().info("b_forward connected to QNode")
 
-                
             if hasattr(self, 'b_reverse'):
                 self.qnode.get_logger().info("b_reverse connecting to QNode...")
                 self.b_reverse.pressed.connect(lambda: self.qnode.publish_velocity(linear_x= -self.linear_speed))
@@ -65,10 +76,22 @@ class PlatformControllerGui(QWidget):
                 self.b_clockwise.released.connect(self.qnode.stop_robot)
                 self.qnode.get_logger().info("b_clockwise connected to QNode")
                 
-            self.qnode.get_logger().info("signals connected to QNode")
+            self.qnode.get_logger().info("All signals connected to QNode")
             
         except Exception as e:
             self.qnode.get_logger().error(f"Failed to connect signals to QNode: {e}")
+    
+    def update_image_display(self, qimage):
+        """Обновление QLabel с изображением (вызывается через сигнал)"""
+        try:
+            if hasattr(self, 'display'):
+                # Конвертируем QImage в QPixmap и устанавливаем в QLabel
+                pixmap = QPixmap.fromImage(qimage)
+                pixmap.save("result_my.png")
+                self.display.setPixmap(pixmap)
+                
+        except Exception as e:
+            self.qnode.get_logger().error(f"Error updating image display: {e}")
         
     def closeEvent(self, event):
         try:
@@ -111,4 +134,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

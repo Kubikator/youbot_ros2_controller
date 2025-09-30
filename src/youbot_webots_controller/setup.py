@@ -35,6 +35,7 @@ setup(
             'gripper_controller = youbot_webots_controller.gripper_controller:main',
             'platform_gui_controller = youbot_webots_controller.platform_gui_controller:main',
             'youbot_odometry = youbot_webots_controller.youbot_odometry:main',
+            'image_processor = youbot_webots_controller.image_processor:main',
         ],
     },
 )
