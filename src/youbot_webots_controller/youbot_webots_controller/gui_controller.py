@@ -87,7 +87,6 @@ class PlatformControllerGui(QWidget):
             if hasattr(self, 'display'):
                 # Конвертируем QImage в QPixmap и устанавливаем в QLabel
                 pixmap = QPixmap.fromImage(qimage)
-                pixmap.save("result_my.png")
                 self.display.setPixmap(pixmap)
                 
         except Exception as e:

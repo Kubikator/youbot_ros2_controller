@@ -6,6 +6,8 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from threading import Thread, Lock
+import time
 from youbot_webots_controller.object_detector.async_object_detector import AsyncObjectDetector
 
 class ImageProcessor(Node):
@@ -32,9 +34,16 @@ class ImageProcessor(Node):
         self.image_pub = self.create_publisher(Image, 'image_processed', 10)
 
         # Переменная для хранения текущего изображения
-        self.current_image = None
         self.processed_image = None
         self.objects = None
+
+        # Разделяемые данные
+        self._thread = Thread(target=self._run, daemon=True)
+        self._lock = Lock()
+        self._current_image = None
+        self._flag_new = False
+
+        self._thread.start()
 
         
         self.get_logger().info('Image Processor node initialized')
@@ -47,12 +56,13 @@ class ImageProcessor(Node):
             cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             
             # Сохраняем изображение для дальнейшей обработки
-            self.current_image = cv_image
+            with self._lock:
+                self._flag_new = True
+                self.current_image = cv_image
             
             # Логируем информацию о полученном изображении
             self.get_logger().info(f'Received image: {cv_image.shape}, type: {cv_image.dtype}')
 
-            self.process_image()
             
         except Exception as e:
             self.get_logger().error(f'Error converting image: {e}')
@@ -60,7 +70,6 @@ class ImageProcessor(Node):
     def process_image(self):
         if self.processor.is_completed():
             self.processed_image, self.objects = self.processor.get_result()
-            cv2.imwrite("result_my_before.png", self.processed_image)
 
             image_msg = self.bridge.cv2_to_imgmsg(self.processed_image, encoding='bgr8')
             image_msg.header.stamp = self.get_clock().now().to_msg()
@@ -69,6 +78,30 @@ class ImageProcessor(Node):
             
         if self.processor.is_idle():
             self.processor.process_image(self.current_image)
+
+    def _run(self):
+        while True:
+            with self._lock:
+                flag = self._flag_new
+
+            if flag:
+                if self.processor.is_completed():
+                    self.processed_image, self.objects = self.processor.get_result()
+
+                    image_msg = self.bridge.cv2_to_imgmsg(self.processed_image, encoding='bgr8')
+                    image_msg.header.stamp = self.get_clock().now().to_msg()
+                    image_msg.header.frame_id = 'camera_link'  # Используем тот же фрейм, что и в TF
+                    self.image_pub.publish(image_msg)
+                
+                if self.processor.is_idle():
+                    with self._lock:
+                        self._flag_new = False
+                        image = self.current_image
+
+                    self.processor.process_image(image)
+            
+            time.sleep(0.01)
+            
 
     def shutdown(self):
 

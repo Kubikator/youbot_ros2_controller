@@ -33,7 +33,7 @@ setup(
             'platform_velocity_controller = youbot_webots_controller.platform_velocity_controller:main',
             'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller:main',
             'gripper_controller = youbot_webots_controller.gripper_controller:main',
-            'platform_gui_controller = youbot_webots_controller.platform_gui_controller:main',
+            'gui_controller = youbot_webots_controller.gui_controller:main',
             'youbot_odometry = youbot_webots_controller.youbot_odometry:main',
             'image_processor = youbot_webots_controller.image_processor:main',
         ],

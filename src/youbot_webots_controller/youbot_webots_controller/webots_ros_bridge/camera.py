@@ -69,7 +69,7 @@ class WebotsCamera:
         )
         
         # Таймеры
-        self.node.create_timer(1, self.publish_image)
+        self.node.create_timer(0.1, self.publish_image)
         self.node.create_timer(0.1, self.publish_tf)     # 10 Hz для TF
         
         self.node.get_logger().info('Webots Camera initialized successfully')

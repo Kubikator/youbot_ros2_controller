@@ -17,9 +17,9 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/kuka/youbot/protos/ExteriorWheel.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/kuka/youbot/protos/PlateMesh.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/kitchen/components/protos/Worktop.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/fruits/protos/Apple.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/fruits/protos/Orange.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/Can.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/balls/protos/RobocupSoccerBall.proto"
 
 WorldInfo {
   info [
@@ -55,9 +55,15 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation -0.19096675740074004 -0.6671034131879461 0.7200727280496321 5.28031761609023
-  position -10.95402223867525 2.764628135085777 6.156310576527575
+  orientation -0.24544857389515423 -0.4863065799973023 0.8386065274156661 4.986953242157824
+  position -6.55774639807974 5.835494060086087 6.696050852491698
   follow "youBot"
+}
+Apple {
+  hidden linearVelocity_0 -2.347263833023827e-21 -1.0621182926214204e-33 7.105424260725715e-16
+  hidden angularVelocity_0 -5.299926770294744e-32 1.1708525138612935e-19 -9.038186687716456e-49
+  translation -5.526777118368237 -1.0509086900431035 0.16988227999999994
+  rotation 0.7329293581322497 0.6652132366064027 -0.14249879238605057 2.6784107338082546
 }
 TexturedBackground {
 }
@@ -66,16 +72,14 @@ TexturedBackgroundLight {
 Floor {
   size 100 100
 }
-RobocupSoccerBall {
-  translation -4.94 -7.08 0.18
-}
-Can {
-  translation -5.43 -1.07 0.18
-  rotation 0 1 0 -5.307179586466759e-06
-}
 Orange {
-  translation -1.21 -0.04999999999993455 0.1698822800175882
-  rotation -0.9999999999223051 -1.2465543004469707e-05 7.341324701580104e-18 1.3151330026559301e-12
+  hidden linearVelocity_0 0 0 7.105446181319634e-16
+  translation -1.20999 -0.171704 0.16988227999999994
+  rotation 0.5912442534630162 -0.5002654709104686 0.6325857185881513 1.935286905947762
+}
+BeerBottle {
+  translation -3.28 -7.079999999999912 0.12046076000000003
+  rotation 0.9999978613225275 0.002031633325487261 -0.00038706123754532034 8.827314468313284e-13
 }
 Worktop {
   translation -5.39 -1.29 0.03
@@ -108,17 +112,17 @@ Worktop {
   name "worktop(6)"
 }
 Worktop {
-  translation -5.07 -7.36 0.09
+  translation -3.12 -7.36 0.09
   rotation 0 0 1 -1.5707953071795862
 }
 Worktop {
-  translation -5.07 -7.36 0.03
+  translation -3.12 -7.36 0.03
   rotation 0 0 1 -1.5707953071795862
   name "worktop(4)"
 }
 Wineglass {
-  translation 0.2200000000000124 -5.57999999929973 0.11958042498571146
-  rotation 0.9999999999999887 -1.5046962511576536e-07 4.912077591295358e-10 1.6727855810832356e-06
+  translation 0.2200000000000178 -5.57999995909528 0.11958300969791669
+  rotation 0.9999999999999887 -1.5036127668983568e-07 2.0964973905573152e-11 9.780273840363611e-05
 }
 Wall {
   translation -5.04 -2.43 0.499993
@@ -255,8 +259,8 @@ Wall {
   name "wall(15)"
 }
 Robot {
-  translation -1.7732855211668759 0.45109122784676353 0.10193771737267096
-  rotation 0.0009935390867900134 0.0032342075840103793 -0.9999942763743134 0.6343211562662944
+  translation -5.40013195654104 -0.2299963714911586 0.10474308294629026
+  rotation 0.0010111841643820833 0.0009524378140430022 -0.9999990351839326 1.853606618736636
   children [
     Camera {
       translation 0.3 0 0.1
@@ -285,7 +289,7 @@ Robot {
         }
         HingeJoint {
           jointParameters HingeJointParameters {
-            position -1.5942264045176637e-10
+            position 1.1763899771598032e-06
             axis 0 0 1
             anchor 0 0 0.077
           }
@@ -302,13 +306,14 @@ Robot {
             }
           ]
           endPoint Solid {
-            translation 0 0 0.077
+            translation 7.252037528185114e-05 2.4381046956116345e-08 0.07431241058366223
+            rotation -0.07248661002228363 0.9953287008828067 0.06376886831692755 3.467843105266256e-06
             children [
               Arm1Mesh {
               }
               HingeJoint {
                 jointParameters HingeJointParameters {
-                  position -1.1411942207106753e-08
+                  position 9.460589777813479e-08
                   axis 0 -1 0
                   anchor 0.033 0 0.07
                 }
@@ -326,13 +331,13 @@ Robot {
                 ]
                 endPoint Solid {
                   translation 0.033 0 0.07
-                  rotation 0 -1 0 0
+                  rotation 0 -1 0 9.424321830774485e-08
                   children [
                     Arm2Mesh {
                     }
                     HingeJoint {
                       jointParameters HingeJointParameters {
-                        position -1.9576488728245748e-08
+                        position -1.722905222976466e-07
                         axis 0 -1 0
                         anchor 0 0 0.155
                       }
@@ -350,13 +355,13 @@ Robot {
                       ]
                       endPoint Solid {
                         translation 0 0 0.155
-                        rotation 0 -1 0 0
+                        rotation 0 1 0 1.7120130796843858e-07
                         children [
                           Arm3Mesh {
                           }
                           HingeJoint {
                             jointParameters HingeJointParameters {
-                              position -1.3645855336158119e-09
+                              position -1.5286071054438541e-09
                               axis 0 -1 0
                               anchor 0 0 0.135
                             }
@@ -380,7 +385,7 @@ Robot {
                                 }
                                 HingeJoint {
                                   jointParameters HingeJointParameters {
-                                    position -3.128432052970029e-10
+                                    position 8.278970734765987e-12
                                     axis 0 0 1
                                     anchor 0 0 0.081
                                   }
@@ -403,7 +408,7 @@ Robot {
                                       }
                                       SliderJoint {
                                         jointParameters JointParameters {
-                                          position 4.762413939931421e-11
+                                          position 1.324321620020795e-10
                                           axis 0 1 0
                                         }
                                         device [
@@ -417,7 +422,7 @@ Robot {
                                           }
                                         ]
                                         endPoint Solid {
-                                          translation 0 4.762413939931421e-11 0.09
+                                          translation 0 1.324321620020795e-10 0.09
                                           rotation 1 0 0 4.71239
                                           children [
                                             FingerMesh {
@@ -455,11 +460,13 @@ Robot {
                                               0 0 8.29319e-07
                                             ]
                                           }
+                                          linearVelocity 2.5811889328438866e-07 -4.7066634461373516e-08 -1.4178319437026717e-08
+                                          angularVelocity 6.157938977251704e-07 -2.9128448621058194e-07 1.1612256949764732e-05
                                         }
                                       }
                                       SliderJoint {
                                         jointParameters JointParameters {
-                                          position -4.762182239818936e-11
+                                          position -1.324259366875776e-10
                                           axis 0 -1 0
                                         }
                                         device [
@@ -473,7 +480,7 @@ Robot {
                                           }
                                         ]
                                         endPoint Solid {
-                                          translation 0 4.762182239818936e-11 0.09
+                                          translation 0 1.324259366875776e-10 0.09
                                           rotation 0 -0.7071067811865476 0.7071067811865476 3.14159
                                           children [
                                             FingerMesh {
@@ -482,6 +489,8 @@ Robot {
                                           name "finger::right"
                                           boundingObject USE FINGER_BO
                                           physics USE FINGER_PH
+                                          linearVelocity 1.9331123062902503e-07 -2.7007941819842446e-07 -1.6335617984234813e-08
+                                          angularVelocity 6.157935678396919e-07 -2.912843818294845e-07 1.1612256912793555e-05
                                         }
                                       }
                                     ]
@@ -504,6 +513,8 @@ Robot {
                                         0 0 0
                                       ]
                                     }
+                                    linearVelocity 2.430016304357067e-07 -1.1826509871134927e-07 -1.5162724996779693e-08
+                                    angularVelocity 6.157939014647766e-07 -2.9128413481424887e-07 1.161225698609015e-05
                                   }
                                 }
                               ]
@@ -540,6 +551,8 @@ Robot {
                                   0 0 -0.00015098
                                 ]
                               }
+                              linearVelocity 2.6968715788134994e-07 -5.628595612501035e-08 -1.5024446661834394e-08
+                              angularVelocity 6.157965564137272e-07 -2.9127851133013284e-07 1.1612342100531387e-05
                             }
                           }
                         ]
@@ -562,6 +575,8 @@ Robot {
                             0 0 -5.99276e-20
                           ]
                         }
+                        linearVelocity 3.6853197535757167e-07 2.539679251203414e-07 -1.2487826588173374e-08
+                        angularVelocity 6.142774596449024e-07 -2.9081225060683294e-07 1.1612357935387221e-05
                       }
                     }
                   ]
@@ -584,6 +599,8 @@ Robot {
                       0 0 1.56701e-20
                     ]
                   }
+                  linearVelocity 2.0133907919695752e-07 -3.6613825085302965e-07 -1.826958683538865e-08
+                  angularVelocity -9.803948116963342e-07 1.7271224868797296e-07 1.1612802242041828e-05
                 }
               }
             ]
@@ -608,6 +625,8 @@ Robot {
                 -0.000533052 -0.00082008 -0.00062712
               ]
             }
+            linearVelocity 1.1783947506858069e-07 6.19454302649147e-08 -1.3612782481121114e-08
+            angularVelocity 2.4594594696108484e-09 -1.1261628620955498e-07 1.161260941263872e-05
           }
         }
       ]
@@ -634,25 +653,25 @@ Robot {
       }
     }
     DEF WHEEL1 InteriorWheel {
-      translation 0.228 -0.158 -0.055
+      translation 0.2276296678687819 -0.15799924157810707 -0.05724993436776036
       anchor 0.228 -0.158 -0.055
       name "wheel1"
       sensorName "wheel1sensor"
     }
     DEF WHEEL2 ExteriorWheel {
-      translation 0.228 0.158 -0.055
+      translation 0.22773656473940657 0.15800020691930428 -0.0571768865738679
       anchor 0.228 0.158 -0.055
       name "wheel2"
       sensorName "wheel2sensor"
     }
     DEF WHEEL3 ExteriorWheel {
-      translation -0.228 -0.158 -0.055
+      translation -0.22836583477974232 -0.15799716606677006 -0.05728140024004368
       anchor -0.228 -0.158 -0.055
       name "wheel3"
       sensorName "wheel3sensor"
     }
     DEF WHEEL4 InteriorWheel {
-      translation -0.228 0.158 -0.055
+      translation -0.22828989132223698 0.15799607656636816 -0.05721779273667441
       anchor -0.228 0.158 -0.055
       name "wheel4"
       sensorName "wheel4sensor"
@@ -756,6 +775,6 @@ Robot {
   controllerArgs [
     "demo"
   ]
-  linearVelocity 5.5270975174399317e-11 -4.063686796453291e-11 -8.8066319378205e-12
-  angularVelocity 5.729694728358117e-10 7.794379048095492e-10 -2.5036464363396794e-13
+  linearVelocity -8.666911395839875e-08 6.129055748608081e-09 -9.576651234464541e-09
+  angularVelocity 6.806975096581712e-09 -8.707329002300957e-08 1.3610527219821298e-07
 }
