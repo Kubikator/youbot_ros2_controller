@@ -12,6 +12,10 @@ class ObjectDetector:
         self.model = YOLO(model_path)
         self.confidence_threshold = confidence_threshold
         
+        # Хранилище для последних детекций
+        self.last_detections = []
+        self.last_processed_image = None
+        
         # Цвета для отрисовки bbox (BGR формат)
         self.colors = {
             # Ваши оригинальные цвета (сохранены)
@@ -104,7 +108,6 @@ class ObjectDetector:
         print("Модель успешно загружена!")
     
     def detect(self, image: np.ndarray) -> Tuple[np.ndarray, List[Dict]]:
-
         # Копируем изображение для отрисовки
         output_image = image.copy()
         
@@ -156,8 +159,13 @@ class ObjectDetector:
                     output_image, 
                     class_name, 
                     confidence, 
-                    x1, y1, x2, y2
+                    x1, y1, x2, y2,
+                    center_x, center_y
                 )
+        
+        # Сохраняем последние детекции для доступа через геттеры
+        self.last_detections = detected_objects
+        self.last_processed_image = output_image
         
         # Добавляем общую информацию о количестве найденных объектов
         self._draw_info_header(output_image, len(detected_objects))
@@ -169,14 +177,18 @@ class ObjectDetector:
         image: np.ndarray, 
         class_name: str, 
         confidence: float, 
-        x1: int, y1: int, x2: int, y2: int
+        x1: int, y1: int, x2: int, y2: int,
+        center_x: int, center_y: int
     ) -> np.ndarray:
-
         # Выбираем цвет для bbox
         color = self.colors.get(class_name, self.colors['default'])
         
         # Отрисовываем прямоугольник bbox
         cv2.rectangle(image, (x1, y1), (x2, y2), color, 2)
+        
+        # Отрисовываем центр объекта
+        cv2.circle(image, (center_x, center_y), 5, color, -1)
+        cv2.circle(image, (center_x, center_y), 8, (255, 255, 255), 2)
         
         # Подготавливаем текст с названием и уверенностью
         label = f"{class_name}: {confidence:.2%}"
@@ -209,10 +221,21 @@ class ObjectDetector:
             2
         )
         
+        # Добавляем координаты центра
+        center_label = f"({center_x}, {center_y})"
+        cv2.putText(
+            image,
+            center_label,
+            (center_x - 40, center_y - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1
+        )
+        
         return image
     
     def _draw_info_header(self, image: np.ndarray, objects_count: int) -> None:
-
         info_text = f"Objects found: {objects_count}"
         
         # Фон для текста
@@ -231,7 +254,6 @@ class ObjectDetector:
         )
     
     def detect_from_file(self, image_path: str) -> Tuple[Optional[np.ndarray], List[Dict]]:
-
         # Загружаем изображение
         image = cv2.imread(image_path)
         
@@ -242,7 +264,6 @@ class ObjectDetector:
         return self.detect(image)
     
     def set_confidence_threshold(self, threshold: float) -> None:
-
         if 0.0 <= threshold <= 1.0:
             self.confidence_threshold = threshold
             print(f"Порог уверенности установлен: {threshold}")
@@ -250,7 +271,6 @@ class ObjectDetector:
             print("Ошибка: порог должен быть в диапазоне 0.0 - 1.0")
     
     def print_detection_results(self, detected_objects: List[Dict]) -> None:
-
         print("\n" + "="*60)
         print(f"РЕЗУЛЬТАТЫ ДЕТЕКЦИИ: Найдено объектов - {len(detected_objects)}")
         print("="*60)
@@ -270,34 +290,91 @@ class ObjectDetector:
             print(f"    Размер: {obj['bbox']['width']}x{obj['bbox']['height']} px")
         
         print("="*60 + "\n")
-
-
-# def example_with_image_file():
     
-#     # Создаем экземпляр детектора
-#     detector = ObjectDetector(model_path='../../models/yolo11n.pt', confidence_threshold=0.3)
+    # НОВЫЕ ГЕТТЕРЫ ДЛЯ ПОЛУЧЕНИЯ КООРДИНАТ ЦЕНТРОВ
     
-#     # Путь к изображению
-#     image_path = 'orange_2.png'
+    def get_last_detections(self) -> List[Dict]:
+        """Возвращает список всех последних обнаруженных объектов"""
+        return self.last_detections.copy()
     
-#     # Детектируем объекты
-#     output_image, detected_objects = detector.detect_from_file(image_path)
-    
-#     if output_image is not None:
-#         # Выводим результаты в консоль
-#         detector.print_detection_results(detected_objects)
+    def get_object_center(self, index: int = 0) -> Optional[Tuple[int, int]]:
+        """
+        Возвращает центр (x, y) объекта по индексу
         
-#         # Показываем результат
-#         cv2.imshow('Detection Result', output_image)
-#         cv2.waitKey(0)
-#         cv2.destroyAllWindows()
+        Args:
+            index: индекс объекта в списке детекций (по умолчанию 0 - первый объект)
+            
+        Returns:
+            Tuple[int, int] или None если объект не найден
+        """
+        if not self.last_detections or index >= len(self.last_detections):
+            return None
         
-#         # Сохраняем результат
-#         cv2.imwrite('result.png', output_image)
-#         print("Результат сохранен в result.png")
-
-# if __name__ == "__main__":
-#     # Выберите нужный пример:
+        obj = self.last_detections[index]
+        return (obj['bbox']['center_x'], obj['bbox']['center_y'])
     
-#     # Пример 1: Детекция на одном изображении
-#     example_with_image_file()
+    def get_object_centers_by_class(self, class_name: str) -> List[Tuple[int, int]]:
+        """
+        Возвращает список центров всех объектов указанного класса
+        
+        Args:
+            class_name: имя класса для фильтрации
+            
+        Returns:
+            List[Tuple[int, int]] - список координат центров
+        """
+        centers = []
+        for obj in self.last_detections:
+            if obj['class_name'].lower() == class_name.lower():
+                centers.append((obj['bbox']['center_x'], obj['bbox']['center_y']))
+        return centers
+    
+    def get_highest_confidence_center(self) -> Optional[Tuple[int, int]]:
+        """
+        Возвращает центр объекта с наибольшей уверенностью
+        
+        Returns:
+            Tuple[int, int] или None если объектов нет
+        """
+        if not self.last_detections:
+            return None
+        
+        # Находим объект с максимальной уверенностью
+        best_obj = max(self.last_detections, key=lambda x: x['confidence'])
+        return (best_obj['bbox']['center_x'], best_obj['bbox']['center_y'])
+    
+    def get_all_centers(self) -> List[Tuple[int, int]]:
+        """
+        Возвращает центры всех обнаруженных объектов
+        
+        Returns:
+            List[Tuple[int, int]] - список всех центров
+        """
+        return [(obj['bbox']['center_x'], obj['bbox']['center_y']) 
+                for obj in self.last_detections]
+    
+    def get_object_info(self, index: int = 0) -> Optional[Dict]:
+        """
+        Возвращает полную информацию об объекте по индексу
+        
+        Args:
+            index: индекс объекта
+            
+        Returns:
+            Dict или None если объект не найден
+        """
+        if not self.last_detections or index >= len(self.last_detections):
+            return None
+        return self.last_detections[index].copy()
+    
+    def get_objects_count(self) -> int:
+        """Возвращает количество обнаруженных объектов"""
+        return len(self.last_detections)
+    
+    def has_detections(self) -> bool:
+        """Проверяет, есть ли обнаруженные объекты"""
+        return len(self.last_detections) > 0
+    
+    def get_last_processed_image(self) -> Optional[np.ndarray]:
+        """Возвращает последнее обработанное изображение с детекциями"""
+        return self.last_processed_image.copy() if self.last_processed_image is not None else None

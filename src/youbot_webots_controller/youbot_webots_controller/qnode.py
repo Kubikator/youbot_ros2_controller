@@ -30,7 +30,7 @@ class QNode(QObject):
         # Подписка на топик с изображениями
         self.image_subscription = self.node.create_subscription(
             Image,
-            'image_processed',
+            'left/image_processed',
             self.image_callback,
             10
         )

@@ -17,9 +17,9 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/project
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/kuka/youbot/protos/ExteriorWheel.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/robots/kuka/youbot/protos/PlateMesh.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/kitchen/components/protos/Worktop.proto"
-EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/drinks/protos/BeerBottle.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/fruits/protos/Apple.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/fruits/protos/Orange.proto"
+EXTERNPROTO "../protos/Glass.proto"
 
 WorldInfo {
   info [
@@ -55,9 +55,13 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation -0.24544857389515423 -0.4863065799973023 0.8386065274156661 4.986953242157824
-  position -6.55774639807974 5.835494060086087 6.696050852491698
+  orientation -0.33137461951653724 -0.3480701708875343 0.876948127131014 4.4589253435491765
+  position -5.039332719011626 3.128240622072925 3.912143585111255
   follow "youBot"
+}
+Glass {
+  translation -3.28 -7.07 0.120025
+  rotation 0 1 0 4.6928e-06
 }
 Apple {
   hidden linearVelocity_0 -2.347263833023827e-21 -1.0621182926214204e-33 7.105424260725715e-16
@@ -76,10 +80,6 @@ Orange {
   hidden linearVelocity_0 0 0 7.105446181319634e-16
   translation -1.20999 -0.171704 0.16988227999999994
   rotation 0.5912442534630162 -0.5002654709104686 0.6325857185881513 1.935286905947762
-}
-BeerBottle {
-  translation -3.28 -7.079999999999912 0.12046076000000003
-  rotation 0.9999978613225275 0.002031633325487261 -0.00038706123754532034 8.827314468313284e-13
 }
 Worktop {
   translation -5.39 -1.29 0.03
@@ -263,7 +263,14 @@ Robot {
   rotation 0.0010111841643820833 0.0009524378140430022 -0.9999990351839326 1.853606618736636
   children [
     Camera {
-      translation 0.3 0 0.1
+      translation 0.3 -0.3 0.1
+      rotation 0 0 1 0.523599
+      name "camera_right"
+    }
+    Camera {
+      translation 0.3 0.3 0.1
+      rotation 0 0 1 -0.523599
+      name "camera_left"
       width 640
       height 480
     }
@@ -306,8 +313,8 @@ Robot {
             }
           ]
           endPoint Solid {
-            translation 7.252037528185114e-05 2.4381046956116345e-08 0.07431241058366223
-            rotation -0.07248661002228363 0.9953287008828067 0.06376886831692755 3.467843105266256e-06
+            translation 7.252037528185123e-05 2.4381046956116365e-08 0.07431241058366223
+            rotation -0.07248648783989767 0.9953270231710808 0.06379518811032081 3.467843105266256e-06
             children [
               Arm1Mesh {
               }
@@ -460,8 +467,6 @@ Robot {
                                               0 0 8.29319e-07
                                             ]
                                           }
-                                          linearVelocity 2.5811889328438866e-07 -4.7066634461373516e-08 -1.4178319437026717e-08
-                                          angularVelocity 6.157938977251704e-07 -2.9128448621058194e-07 1.1612256949764732e-05
                                         }
                                       }
                                       SliderJoint {
@@ -489,8 +494,6 @@ Robot {
                                           name "finger::right"
                                           boundingObject USE FINGER_BO
                                           physics USE FINGER_PH
-                                          linearVelocity 1.9331123062902503e-07 -2.7007941819842446e-07 -1.6335617984234813e-08
-                                          angularVelocity 6.157935678396919e-07 -2.912843818294845e-07 1.1612256912793555e-05
                                         }
                                       }
                                     ]
@@ -513,8 +516,6 @@ Robot {
                                         0 0 0
                                       ]
                                     }
-                                    linearVelocity 2.430016304357067e-07 -1.1826509871134927e-07 -1.5162724996779693e-08
-                                    angularVelocity 6.157939014647766e-07 -2.9128413481424887e-07 1.161225698609015e-05
                                   }
                                 }
                               ]
@@ -551,8 +552,6 @@ Robot {
                                   0 0 -0.00015098
                                 ]
                               }
-                              linearVelocity 2.6968715788134994e-07 -5.628595612501035e-08 -1.5024446661834394e-08
-                              angularVelocity 6.157965564137272e-07 -2.9127851133013284e-07 1.1612342100531387e-05
                             }
                           }
                         ]
@@ -575,8 +574,6 @@ Robot {
                             0 0 -5.99276e-20
                           ]
                         }
-                        linearVelocity 3.6853197535757167e-07 2.539679251203414e-07 -1.2487826588173374e-08
-                        angularVelocity 6.142774596449024e-07 -2.9081225060683294e-07 1.1612357935387221e-05
                       }
                     }
                   ]
@@ -599,8 +596,6 @@ Robot {
                       0 0 1.56701e-20
                     ]
                   }
-                  linearVelocity 2.0133907919695752e-07 -3.6613825085302965e-07 -1.826958683538865e-08
-                  angularVelocity -9.803948116963342e-07 1.7271224868797296e-07 1.1612802242041828e-05
                 }
               }
             ]
@@ -625,8 +620,6 @@ Robot {
                 -0.000533052 -0.00082008 -0.00062712
               ]
             }
-            linearVelocity 1.1783947506858069e-07 6.19454302649147e-08 -1.3612782481121114e-08
-            angularVelocity 2.4594594696108484e-09 -1.1261628620955498e-07 1.161260941263872e-05
           }
         }
       ]

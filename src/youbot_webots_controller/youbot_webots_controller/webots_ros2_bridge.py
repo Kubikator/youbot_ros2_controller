@@ -31,7 +31,26 @@ class WebotsRosBridge(Node):
         self.manipulator = Manipulator(self, self.robot, self.timestep)
         self.gripper = Gripper(self, self.robot, self.timestep)
         self.lidar = Lidar(self, self.robot, self.timestep)
-        self.camera = WebotsCamera(self, 'camera', 16)       
+        self.left_camera = WebotsCamera(
+            node=self,
+            camera_name='camera_left',  # Имя камеры в Webots
+            tf_prefix='left',           # Префикс для топиков и TF
+            camera_offset_x=0.3,
+            camera_offset_y=0.3,        # Смещение влево
+            camera_offset_z=0.1,
+            rotation_z=-30.0             # Поворот на 30 градусов
+        )
+        
+        # Правая камера  
+        self.right_camera = WebotsCamera(
+            node=self,
+            camera_name='camera_right',  # Имя камеры в Webots
+            tf_prefix='right',           # Префикс для топиков и TF
+            camera_offset_x=0.3,
+            camera_offset_y=-0.3,        # Смещение вправо
+            camera_offset_z=0.1,
+            rotation_z=30.0             # Поворот на -30 градусов
+        )    
         
         self.get_logger().info('Webots Ros2 Bridge initialized successfully')
 
@@ -52,6 +71,9 @@ class WebotsRosBridge(Node):
         finally:
             # Останавливаем компоненты при выходе
             self.mobile_platform.shutdown()
+            self.left_camera.shutdown()
+            self.right_camera.shutdown()
+            self.lidar.shutdown()
             self.get_logger().info('Webots Bridge shutdown')
 
 def main(args=None):

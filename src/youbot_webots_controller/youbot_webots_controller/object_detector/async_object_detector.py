@@ -4,6 +4,7 @@ import numpy as np
 import time
 from threading import Thread, Lock
 from enum import Enum
+from typing import List, Dict, Tuple, Optional
 from youbot_webots_controller.object_detector.object_detector import ObjectDetector
 
 
@@ -131,6 +132,10 @@ class AsyncObjectDetector:
                 return False
             
             time.sleep(0.01)  # Небольшая задержка для снижения нагрузки на CPU
+
+    def get_highest_confidence_center(self) -> Optional[Tuple[int, int]]:
+        return self.detector.get_highest_confidence_center()
+
     
     def reset(self):
 
