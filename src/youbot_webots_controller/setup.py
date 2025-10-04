@@ -29,13 +29,14 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'webots_ros2_bridge = youbot_webots_controller.webots_ros2_bridge:main',
-            'platform_velocity_controller = youbot_webots_controller.platform_velocity_controller:main',
-            'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller:main',
-            'gripper_controller = youbot_webots_controller.gripper_controller:main',
-            'gui_controller = youbot_webots_controller.gui_controller:main',
-            'youbot_odometry = youbot_webots_controller.youbot_odometry:main',
-            'image_processor = youbot_webots_controller.image_processor:main',
+            'webots_ros2_bridge = youbot_webots_controller.webots_ros_bridge.webots_ros2_bridge_node:main',
+            'platform_velocity_controller = youbot_webots_controller.platform_velocity_controller.platform_velocity_controller_node:main',
+            'youbot_arm_controller = youbot_webots_controller.youbot_arm_controller.youbot_arm_controller_node:main',
+            'gripper_controller = youbot_webots_controller.gripper_controller.gripper_controller_node:main',
+            'gui_controller = youbot_webots_controller.gui_controller.gui_controller_node:main',
+            'youbot_odometry = youbot_webots_controller.youbot_odometry.youbot_odometry_node:main',
+            'image_processor = youbot_webots_controller.object_detector.image_processor_node:main',
+            'triangulator_node = youbot_webots_controller.triangulator.triangulator_node:main',
         ],
     },
 )

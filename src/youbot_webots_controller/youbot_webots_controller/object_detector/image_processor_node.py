@@ -78,7 +78,7 @@ class ImageProcessor(Node):
                 self._left_current_image = cv_image
             
             # Логируем информацию о полученном изображении
-            self.get_logger().info(f'Left camera - Received image: {cv_image.shape}, type: {cv_image.dtype}')
+            #self.get_logger().info(f'Left camera - Received image: {cv_image.shape}, type: {cv_image.dtype}')
 
             
         except Exception as e:
@@ -96,7 +96,7 @@ class ImageProcessor(Node):
                 self._right_current_image = cv_image
             
             # Логируем информацию о полученном изображении
-            self.get_logger().info(f'Right camera - Received image: {cv_image.shape}, type: {cv_image.dtype}')
+            #self.get_logger().info(f'Right camera - Received image: {cv_image.shape}, type: {cv_image.dtype}')
 
             
         except Exception as e:

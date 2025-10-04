@@ -130,6 +130,18 @@ def generate_launch_description():
         ]
     )
 
+    triangulator_node = TimerAction(
+        period=10.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='triangulator_node',
+                name='triangulator_node',
+                output='screen'
+            )
+        ]
+    )
+
     return LaunchDescription([
         world_file_arg,
         webots_controller_arg,
@@ -139,5 +151,6 @@ def generate_launch_description():
         youbot_odometry,
         arm_controller,
         gripper_controller,
-        image_processor
+        image_processor,
+        triangulator_node
     ])

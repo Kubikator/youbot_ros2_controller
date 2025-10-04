@@ -12,7 +12,8 @@ os.environ.pop("QT_QPA_PLATFORM_PLUGIN_PATH")
 
 class QNode(QObject):
     # Сигнал для передачи изображения в GUI
-    image_received = pyqtSignal(object)  # Будем передавать QImage или QPixmap
+    image_received_left = pyqtSignal(object)
+    image_received_right = pyqtSignal(object)
     
     def __init__(self, node_name='QNode'):
         super().__init__()
@@ -31,7 +32,15 @@ class QNode(QObject):
         self.image_subscription = self.node.create_subscription(
             Image,
             'left/image_processed',
-            self.image_callback,
+            self.image_callback_left,
+            10
+        )
+
+        # Подписка на топик с изображениями
+        self.image_subscription = self.node.create_subscription(
+            Image,
+            'right/image_processed',
+            self.image_callback_right,
             10
         )
         
@@ -52,7 +61,7 @@ class QNode(QObject):
         except Exception as e:
             self.get_logger().error(f"Error in spin_once: {e}")
     
-    def image_callback(self, msg):
+    def image_callback_left(self, msg):
         """Обработчик сообщений с изображениями"""
         try:
             # Конвертируем ROS Image в OpenCV изображение
@@ -73,7 +82,33 @@ class QNode(QObject):
             qimage_copy = qimage.copy()
             
             # Отправляем изображение через сигнал
-            self.image_received.emit(qimage_copy)
+            self.image_received_left.emit(qimage_copy)
+            
+        except Exception as e:
+            self.get_logger().error(f"Error processing image: {e}")
+
+    def image_callback_right(self, msg):
+        """Обработчик сообщений с изображениями"""
+        try:
+            # Конвертируем ROS Image в OpenCV изображение
+            cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+            
+            # Конвертируем OpenCV изображение в QImage
+            height, width, channel = cv_image.shape
+            bytes_per_line = 3 * width
+            
+            # Конвертируем BGR в RGB для QImage
+            rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+            
+            # Создаем QImage
+            from PyQt5.QtGui import QImage
+            qimage = QImage(rgb_image.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            
+            # Делаем копию, так как данные могут быть освобождены
+            qimage_copy = qimage.copy()
+            
+            # Отправляем изображение через сигнал
+            self.image_received_right.emit(qimage_copy)
             
         except Exception as e:
             self.get_logger().error(f"Error processing image: {e}")

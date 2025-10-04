@@ -111,7 +111,7 @@ class AsyncObjectDetector:
                 self._detected_objects = detected_objects
                 self._state = DetectorState.COMPLETED
                 
-            print(f"Processing finished. Objects find: {len(detected_objects)}")
+            #print(f"Processing finished. Objects find: {len(detected_objects)}")
             
         except Exception as e:
             print(f"Image processing error: {e}")

@@ -6,7 +6,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt
 from PyQt5 import uic
 
-from .qnode import QNode
+from youbot_webots_controller.gui_controller.qnode import QNode
 
 class PlatformControllerGui(QWidget):
 
@@ -37,11 +37,15 @@ class PlatformControllerGui(QWidget):
             self.qnode.get_logger().info(f"UI loaded from file: {self.ui_file_path}")
             
             # Настройка QLabel для отображения изображений
-            if hasattr(self, 'display'):
-                self.display.setAlignment(Qt.AlignCenter)
-                self.display.setScaledContents(True)  # Включаем автомасштабирование
-                #self.display.setMinimumSize(640, 480)
-                self.qnode.get_logger().info("QLabel 'display' configured for image display")
+            if hasattr(self, 'display_left'):
+                self.display_left.setAlignment(Qt.AlignCenter)
+                self.display_left.setScaledContents(True)  # Включаем автомасштабирование
+                self.qnode.get_logger().info("QLabel 'display_left' configured for image display")
+
+            if hasattr(self, 'display_right'):
+                self.display_right.setAlignment(Qt.AlignCenter)
+                self.display_right.setScaledContents(True)  # Включаем автомасштабирование
+                self.qnode.get_logger().info("QLabel 'display_right' configured for image display")
             
         except Exception as e:
             self.qnode.get_logger().error(f"Failed to initialize UI: {e}")
@@ -49,7 +53,8 @@ class PlatformControllerGui(QWidget):
     def setup_connections(self):
         try:
             # Подключаем сигнал изображения от QNode
-            self.qnode.image_received.connect(self.update_image_display)
+            self.qnode.image_received_left.connect(self.update_image_display_left)
+            self.qnode.image_received_right.connect(self.update_image_display_right)
             
             # Кнопки движения (нажатие/отпускание для непрерывного движения)
             if hasattr(self, 'b_forward'):
@@ -81,13 +86,24 @@ class PlatformControllerGui(QWidget):
         except Exception as e:
             self.qnode.get_logger().error(f"Failed to connect signals to QNode: {e}")
     
-    def update_image_display(self, qimage):
+    def update_image_display_left(self, qimage):
         """Обновление QLabel с изображением (вызывается через сигнал)"""
         try:
-            if hasattr(self, 'display'):
+            if hasattr(self, 'display_left'):
                 # Конвертируем QImage в QPixmap и устанавливаем в QLabel
                 pixmap = QPixmap.fromImage(qimage)
-                self.display.setPixmap(pixmap)
+                self.display_left.setPixmap(pixmap)
+                
+        except Exception as e:
+            self.qnode.get_logger().error(f"Error updating image display: {e}")
+
+    def update_image_display_right(self, qimage):
+        """Обновление QLabel с изображением (вызывается через сигнал)"""
+        try:
+            if hasattr(self, 'display_right'):
+                # Конвертируем QImage в QPixmap и устанавливаем в QLabel
+                pixmap = QPixmap.fromImage(qimage)
+                self.display_right.setPixmap(pixmap)
                 
         except Exception as e:
             self.qnode.get_logger().error(f"Error updating image display: {e}")

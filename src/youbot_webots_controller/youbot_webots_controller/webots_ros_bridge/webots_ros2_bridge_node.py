@@ -36,9 +36,9 @@ class WebotsRosBridge(Node):
             camera_name='camera_left',  # Имя камеры в Webots
             tf_prefix='left',           # Префикс для топиков и TF
             camera_offset_x=0.3,
-            camera_offset_y=0.3,        # Смещение влево
+            camera_offset_y=0.1,        # Смещение влево
             camera_offset_z=0.1,
-            rotation_z=-30.0             # Поворот на 30 градусов
+            rotation_z=-10.0             # Поворот на 10 градусов
         )
         
         # Правая камера  
@@ -47,9 +47,9 @@ class WebotsRosBridge(Node):
             camera_name='camera_right',  # Имя камеры в Webots
             tf_prefix='right',           # Префикс для топиков и TF
             camera_offset_x=0.3,
-            camera_offset_y=-0.3,        # Смещение вправо
+            camera_offset_y=-0.1,        # Смещение вправо
             camera_offset_z=0.1,
-            rotation_z=30.0             # Поворот на -30 градусов
+            rotation_z=10.0             # Поворот на -10 градусов
         )    
         
         self.get_logger().info('Webots Ros2 Bridge initialized successfully')
