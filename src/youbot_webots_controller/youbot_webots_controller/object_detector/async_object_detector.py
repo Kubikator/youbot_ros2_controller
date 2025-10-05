@@ -135,6 +135,12 @@ class AsyncObjectDetector:
 
     def get_highest_confidence_center(self) -> Optional[Tuple[int, int]]:
         return self.detector.get_highest_confidence_center()
+    
+    def get_object_centers_by_class(self, class_name: str) -> List[Tuple[int, int]]:
+        return self.detector.get_object_centers_by_class(class_name=class_name)
+    
+    def get_classes(self):
+        return self.detector.get_classes()
 
     
     def reset(self):

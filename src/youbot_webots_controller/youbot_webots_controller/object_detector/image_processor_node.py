@@ -20,8 +20,8 @@ class ImageProcessor(Node):
 
         # Создаем классы асинхронной обработки изображений для двух камер
         self.get_logger().info('Start to initialize object detectors...')
-        self.left_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt')
-        self.right_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt')
+        self.left_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt',confidence_threshold=0.6)
+        self.right_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt',confidence_threshold=0.6)
         self.get_logger().info('Finish to initialize object detectors')
         
         # Подписка на топики с изображениями левой и правой камер
@@ -46,6 +46,18 @@ class ImageProcessor(Node):
         # Публикаторы топиков с центрами объектов
         self.left_center_pub = self.create_publisher(Point, 'left/object_center', 10)
         self.right_center_pub = self.create_publisher(Point, 'right/object_center', 10)
+
+        self.left_orange_center_pub = self.create_publisher(Point, 'left/orange_center', 10)
+        self.right_orange_center_pub = self.create_publisher(Point, 'right/orange_center', 10)
+
+        self.left_apple_center_pub = self.create_publisher(Point, 'left/apple_center', 10)
+        self.right_apple_center_pub = self.create_publisher(Point, 'right/apple_center', 10)
+
+        self.left_cup_center_pub = self.create_publisher(Point, 'left/cup_center', 10)
+        self.right_cup_center_pub = self.create_publisher(Point, 'right/cup_center', 10)
+
+        self.left_wine_center_pub = self.create_publisher(Point, 'left/wine_center', 10)
+        self.right_wine_center_pub = self.create_publisher(Point, 'right/wine_center', 10)
 
         # Разделяемые данные для левой камеры
         self._left_thread = Thread(target=self._left_run, daemon=True)
@@ -143,14 +155,30 @@ class ImageProcessor(Node):
                     image_msg.header.stamp = self.get_clock().now().to_msg()
                     image_msg.header.frame_id = 'left_camera_link'
                     self.left_image_pub.publish(image_msg)
+
+                    classes = self.left_processor.get_classes()
+                    for cl in classes:
+                        center = self.left_processor.get_object_centers_by_class(cl)
+                        if len(center) != 0:
+                            center_x, center_y = center[0][0], center[0][1]
+                        else:
+                            center_x, center_y = float('nan'), float('nan')
+
+                        if cl == 'orange':
+                            self._publish_object_center(center_x, center_y, self.left_orange_center_pub, "Left")
+                        elif cl == 'apple':
+                            self._publish_object_center(center_x, center_y, self.left_apple_center_pub, "Left")
+                        elif cl == 'cup':
+                            self._publish_object_center(center_x, center_y, self.left_cup_center_pub, "Left")
+                        elif cl == 'wine glass':
+                            self._publish_object_center(center_x, center_y, self.left_wine_center_pub, "Left")
                     
-                    # Получаем и публикуем центр объекта (заглушка)
                     result = self.left_processor.get_highest_confidence_center()
                     if result is not None:
                         center_x, center_y = result[0], result[1]
-                        self._publish_object_center(center_x, center_y, self.left_center_pub, "Left")
                     else:
-                        center_x, center_y = None, None
+                        center_x, center_y = float('nan'), float('nan')
+                    self._publish_object_center(center_x, center_y, self.left_center_pub, "Left")
                 
                 if self.left_processor.is_idle():
                     with self._left_lock:
@@ -177,14 +205,31 @@ class ImageProcessor(Node):
                     image_msg.header.stamp = self.get_clock().now().to_msg()
                     image_msg.header.frame_id = 'right_camera_link'
                     self.right_image_pub.publish(image_msg)
+
+                    # Получаем все классы и проходимся по каждому
+                    classes = self.right_processor.get_classes()
+                    for cl in classes:
+                        center = self.right_processor.get_object_centers_by_class(cl)
+                        if len(center) != 0:
+                            center_x, center_y = center[0][0], center[0][1]
+                        else:
+                            center_x, center_y = float('nan'), float('nan')
+
+                        if cl == 'orange':
+                            self._publish_object_center(center_x, center_y, self.right_orange_center_pub, "Right")
+                        elif cl == 'apple':
+                            self._publish_object_center(center_x, center_y, self.right_apple_center_pub, "Right")
+                        elif cl == 'cup':
+                            self._publish_object_center(center_x, center_y, self.right_cup_center_pub, "Right")
+                        elif cl == 'wine glass':
+                            self._publish_object_center(center_x, center_y, self.right_wine_center_pub, "Right")
                     
-                    # Получаем и публикуем центр объекта (заглушка)
                     result = self.right_processor.get_highest_confidence_center()
                     if result is not None:
                         center_x, center_y = result[0], result[1]
-                        self._publish_object_center(center_x, center_y, self.right_center_pub, "Right")
                     else:
-                        center_x, center_y = None, None
+                        center_x, center_y = float('nan'), float('nan')
+                    self._publish_object_center(center_x, center_y, self.right_center_pub, "Right")
                 
                 if self.right_processor.is_idle():
                     with self._right_lock:

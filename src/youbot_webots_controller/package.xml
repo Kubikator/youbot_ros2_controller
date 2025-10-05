@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>youbot_webots_controller</name>
@@ -15,9 +15,9 @@
   <depend>cv_bridge</depend>
   <depend>image_transport</depend>
   <depend>camera_info_manager</depend>
+  <depend>action_msgs</depend>
   <exec_depend>teleop_twist_keyboard</exec_depend>
   <exec_depend>python3-pyqt5</exec_depend>
-  
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>

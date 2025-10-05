@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-
 import rclpy
 from rclpy.node import Node
-from trajectory_msgs.msg import JointTrajectory
-from std_msgs.msg import Float64MultiArray, String
+from geometry_msgs.msg import Pose
+from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
-import time
-from threading import Thread
+import numpy as np
+from youbot_webots_controller.youbot_arm_controller.arm_kinematic_solver import KukaYouBotKinematics
 
 class ArmKinematicsSolver(Node):
     def __init__(self):
         super().__init__('arm_kinematics_solver')
         
         self.get_logger().info('Starting Arm Kinematics Solver...')
+        
+        # Инициализация класса кинематики
+        self.kinematics = KukaYouBotKinematics()
         
         # Параметры манипулятора YouBot
         self.arm_joint_names = [
@@ -34,8 +36,6 @@ class ArmKinematicsSolver(Node):
         
         # Текущие позиции суставов
         self.current_positions = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.target_positions = [0.0, 0.0, 0.0, 0.0, 0.0]
-        self.is_moving = False
         
         # Публикатор для целевых позиций
         self.arm_target_pub = self.create_publisher(
@@ -45,12 +45,12 @@ class ArmKinematicsSolver(Node):
         )
         
         # Подписчики
-        self.create_subscription(Float64MultiArray, 'arm_joints_positions', 
-                                self.joints_positions_callback, 10)
-        self.create_subscription(JointTrajectory, 'arm_joints_trajectory',
-                                self.joint_trajectory_callback, 10)
         self.create_subscription(JointState, 'arm_joints_states',
                                 self.joint_states_callback, 10)
+        self.create_subscription(Float64MultiArray, 'arm_target_joints',
+                                self.target_joints_callback, 10)
+        self.create_subscription(Pose, 'arm_target_pose',
+                                self.target_pose_callback, 10)
         
         self.get_logger().info('Arm Kinematics Solver initialized successfully')
 
@@ -64,8 +64,9 @@ class ArmKinematicsSolver(Node):
         except Exception as e:
             self.get_logger().error(f'Error in joint_states_callback: {e}')
 
-    def joints_positions_callback(self, msg):
-        self.get_logger().info(f'Received joints target positions: {msg.data}')
+    def target_joints_callback(self, msg):
+        """Получение обобщенных координат (углов суставов)"""
+        self.get_logger().info(f'Received target joint positions: {msg.data}')
         
         if len(msg.data) == 5:
             # Проверяем и ограничиваем позиции
@@ -78,14 +79,41 @@ class ArmKinematicsSolver(Node):
         else:
             self.get_logger().warn(f'Invalid number of positions: {len(msg.data)} (should be 5)')
 
-    def joint_trajectory_callback(self, msg):
-        self.get_logger().info(f'Received joint trajectory for: {msg.joint_names}')
-        
-        if set(msg.joint_names) == set(self.arm_joint_names):
-            # Запускаем выполнение траектории в отдельном потоке
-            Thread(target=self.execute_trajectory, args=(msg.points,), daemon=True).start()
-        else:
-            self.get_logger().warn('Joint names mismatch in trajectory')
+    def target_pose_callback(self, msg):
+        """Получение целевой позы (x, y, z и ориентация)"""
+        try:
+            # Извлекаем позицию
+            x = msg.position.x
+            y = msg.position.y
+            z = msg.position.z
+            
+            # Извлекаем pitch из кватерниона ориентации
+            # Для упрощения используем только pitch (наклон вперед-назад)
+            qx = msg.orientation.x
+            qy = msg.orientation.y
+            qz = msg.orientation.z
+            qw = msg.orientation.w
+            
+            # Преобразование кватерниона в углы Эйлера (pitch)
+            pitch = np.arcsin(2.0 * (qw * qy - qz * qx))
+            
+            self.get_logger().info(f'Received target pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, pitch={pitch:.3f}')
+            
+            # Решение обратной кинематики
+            target_pos = np.array([x, y, z])
+            joint_angles = self.kinematics.inverse_kinematics(target_pos, pitch)
+            
+            # Проверяем и ограничиваем углы
+            target_positions = []
+            for i, (angle, name) in enumerate(zip(joint_angles, self.arm_joint_names)):
+                limited_angle = max(min(angle, self.joint_limits[name][1]), self.joint_limits[name][0])
+                target_positions.append(limited_angle)
+            
+            self.get_logger().info(f'Computed joint angles: {target_positions}')
+            self.send_target_positions(target_positions)
+            
+        except Exception as e:
+            self.get_logger().error(f'Error in target_pose_callback: {e}')
 
     def send_target_positions(self, positions):
         try:
@@ -96,36 +124,6 @@ class ArmKinematicsSolver(Node):
         except Exception as e:
             self.get_logger().error(f'Error sending target positions: {e}')
 
-    def execute_trajectory(self, points):
-        if self.is_moving:
-            self.get_logger().info('Movement already in progress, waiting...')
-            return
-        
-        self.is_moving = True
-        
-        try:
-            for point_idx, point in enumerate(points):
-                self.get_logger().info(f'Executing trajectory point {point_idx + 1}/{len(points)}')
-                
-                # Получаем целевые позиции для этой точки траектории
-                target_positions = [
-                    max(min(pos, self.joint_limits[name][1]), self.joint_limits[name][0])
-                    for pos, name in zip(point.positions, self.arm_joint_names)
-                ]
-                
-                # Отправляем позиции
-                self.send_target_positions(target_positions)
-                
-                # Ждем указанное время перед переходом к следующей точке
-                wait_time = point.time_from_start.sec + point.time_from_start.nanosec * 1e-9
-                time.sleep(wait_time)
-            
-            self.get_logger().info('Trajectory execution completed')
-            
-        except Exception as e:
-            self.get_logger().error(f'Error executing trajectory: {e}')
-        finally:
-            self.is_moving = False
 
 def main(args=None):
     rclpy.init(args=args)
