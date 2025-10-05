@@ -84,8 +84,8 @@ class StereoTriangulationNode(Node):
     
     def left_callback(self, msg: Point):
         """Callback для левой камеры"""
-        if (msg.x is float('nan')) or (msg.y is float('nan')):
-            return
+        # if (msg.x is float('nan')) or (msg.y is float('nan')):
+        #     return
         
         self.left_point = (msg.x, msg.y)
         self.last_left_stamp = self.get_clock().now()
@@ -93,8 +93,8 @@ class StereoTriangulationNode(Node):
     
     def right_callback(self, msg: Point):
         """Callback для правой камеры"""
-        if (msg.x is float('nan')) or (msg.y is float('nan')):
-            return
+        # if (msg.x is float('nan')) or (msg.y is float('nan')):
+        #     return
         self.right_point = (msg.x, msg.y)
         self.last_right_stamp = self.get_clock().now()
         self.get_logger().debug(f"Right point received: ({self.right_point[0]:.2f}, {self.right_point[1]:.2f})")

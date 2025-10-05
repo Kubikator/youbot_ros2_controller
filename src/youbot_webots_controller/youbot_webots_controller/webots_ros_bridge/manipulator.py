@@ -1,12 +1,17 @@
 import rclpy
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import TransformStamped
+from tf2_ros import TransformBroadcaster
+import math
 
 class Manipulator:
     def __init__(self, node, robot, timestep):
         self.node = node
         self.robot = robot
         self.timestep = timestep
+
+        self.tf_broadcaster = TransformBroadcaster(self.node)
         
         self.node.get_logger().info('Initializing Manipulator...')
         
@@ -67,8 +72,36 @@ class Manipulator:
         
         # Таймер для обновления состояний суставов
         self.node.create_timer(0.1, self.update_joint_states)  # 10 Hz
+        self.node.create_timer(0.1, self.publish_tf)     # 10 Hz для TF
         
         self.node.get_logger().info('Manipulator initialized successfully')
+
+    def publish_tf(self):
+        try:
+            t = TransformStamped()
+            
+            # Заполняем заголовок
+            t.header.stamp = self.node.get_clock().now().to_msg()
+            t.header.frame_id = 'base_link'    # Родительский фрейм
+            t.child_frame_id = 'arm_link'   # Дочерний фрейм
+            
+            # Позиция манипулятора относительно base_link
+            t.transform.translation.x = 0.16
+            t.transform.translation.y = 0.0
+            t.transform.translation.z = 0.144 - 0.253 # Высота до второй оси вращений минус длина от первой оси до второй
+            
+            # Ориентация манипулятора
+            angle_rad = math.radians(-90)
+            t.transform.rotation.x = 0.0
+            t.transform.rotation.y = 0.0
+            t.transform.rotation.z = math.sin(angle_rad / 2)
+            t.transform.rotation.w = math.cos(angle_rad / 2)
+            
+            # Публикуем трансформацию
+            self.tf_broadcaster.sendTransform(t)
+            
+        except Exception as e:
+            self.node.get_logger().error(f'Error publishing TF for {self.camera_name}: {e}')
 
     def arm_target_callback(self, msg):
         try:

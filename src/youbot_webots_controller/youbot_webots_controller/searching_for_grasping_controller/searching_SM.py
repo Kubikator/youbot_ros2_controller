@@ -1,0 +1,497 @@
+#!/usr/bin/env python3
+
+import rclpy
+import sys
+import smach
+import smach_ros
+from geometry_msgs.msg import Twist, Point, PointStamped
+from youbot_webots_controller.srv import CoordinateTransform
+import time
+import math
+import threading
+
+class InitialState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['success', 'failure'])
+        self.target_object = target_object
+        
+    def execute(self, userdata):
+        # Создаем временный узел
+        node = rclpy.create_node('initial_state')
+        
+        try:
+            node.get_logger().info('=== ИНИЦИАЛИЗАЦИЯ СИСТЕМЫ ===')
+            node.get_logger().info(f'Целевой объект: {self.target_object}')
+            
+            node.get_logger().info('Система готова к работе')
+            return 'success'
+            
+        finally:
+            # Всегда уничтожаем узел
+            node.destroy_node()
+
+
+class SearchingState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['object_found', 'failure'])
+        self.target_object = target_object
+        self.flag_left = False
+        self.flag_right = False
+        self.node = None
+        self.published_left = False
+        self.published_right = False
+        
+    def execute(self, userdata):
+        # Создаем временный узел
+        self.node = rclpy.create_node('searching_state')
+        
+        try:
+            self.node.get_logger().info(f'=== ПОИСК ОБЪЕКТА: {self.target_object} ===')
+            self.node.get_logger().info('Вращение вокруг оси для поиска...')
+            
+            # Создаем издателя для cmd_vel
+            cmd_vel_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
+
+            name_left = ''
+            name_right = ''
+
+            if self.target_object == 'apple':
+                name_left = 'left/apple_center'
+                name_right = 'right/apple_center'
+            elif self.target_object == 'orange':
+                name_left = 'left/orange_center'
+                name_right = 'right/orange_center'
+            elif self.target_object == 'cup':
+                name_left = 'left/cup_center'
+                name_right = 'right/cup_center'
+            else:
+                name_left = 'left/wine_center'
+                name_right = 'right/wine_center'
+
+            # Подписка на топики с изображениями левой и правой камер
+            self.left_subscription = self.node.create_subscription(
+                Point,
+                name_left,
+                self.left_callback,
+                10
+            )
+
+            self.right_subscription = self.node.create_subscription(
+                Point,
+                name_right,
+                self.right_callback,
+                10
+            )
+            
+            # Даем время для инициализации издателя
+            import time
+            time.sleep(0.5)
+            
+            # Публикуем команду вращения
+            twist_msg = Twist()
+            twist_msg.angular.z = 0.3  # rad/s
+            cmd_vel_publisher.publish(twist_msg)
+            self.published_right = True
+            
+            # Здесь будет реальная логика поиска через ваш Action сервер
+            self.node.get_logger().info(f'Ищем: {self.target_object}')
+            
+            while (not self.flag_left) or (not self.flag_right):
+                if self.flag_left and not self.published_left:
+                    self.node.get_logger().info('Вращаюсь по часовой')
+                    twist_msg = Twist()
+                    twist_msg.angular.z = 0.3  # rad/s
+                    cmd_vel_publisher.publish(twist_msg)
+                    self.published_left = True
+                    self.published_right = False
+                elif self.flag_right and not self.published_right:
+                    self.node.get_logger().info('Вращаюсь против часовой')
+                    twist_msg = Twist()
+                    twist_msg.angular.z = -0.3  # rad/s
+                    cmd_vel_publisher.publish(twist_msg)
+                    self.published_left = False
+                    self.published_right = True
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.1)
+            
+            self.node.get_logger().info('Объект обнаружен в обоих камерах')
+            stop_msg = Twist()
+            cmd_vel_publisher.publish(stop_msg)
+            return 'object_found'
+            
+        except Exception as e:
+            self.node.get_logger().error(f'Ошибка в состоянии поиска: {e}')
+            return 'failure'
+        finally:
+            self.node.destroy_node()
+    
+    def left_callback(self, msg: Point):
+        if not math.isnan(msg.x) and not math.isnan(msg.y):
+            self.node.get_logger().info(f'Объект обнаружен в левой камере ({msg.x},{msg.y})')
+            self.flag_left = True
+        else:
+            self.flag_left = False
+
+    def right_callback(self, msg: Point):
+        if not math.isnan(msg.x) and not math.isnan(msg.y):
+            self.node.get_logger().info(f'Объект обнаружен в правой камере ({msg.x},{msg.y})')
+            self.flag_right = True
+        else:
+            self.flag_right = False
+
+    def delay_with_callbacks(self, node, delay_seconds):
+        """Задержка с обработкой колбэков"""
+        start_time = time.time()
+        while rclpy.ok() and (time.time() - start_time) < delay_seconds:
+            # Обрабатываем колбэки в течение короткого таймаута
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+
+
+class AlignmentState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['aligned', 'object_lost', 'failure'])
+        self.target_object = target_object
+        self.turn_left_flag = False
+        self.turn_right_flag = False
+        self.stop_flag = False
+        self.published_left = False
+        self.published_right = False
+        self.counter_left = 0
+        self.counter_right = 0
+        self.flag_object_lost = False
+        
+    def execute(self, userdata):
+        # Создаем временный узел
+        node = rclpy.create_node('alignment_state')
+        
+        try:
+            node.get_logger().info(f'=== ВЫРАВНИВАНИЕ С ОБЪЕКТОМ: {self.target_object} ===')
+            
+            # Создаем издателя для точного позиционирования
+            cmd_vel_publisher = node.create_publisher(Twist, '/cmd_vel', 10)
+
+            name_left = ''
+            name_right = ''
+
+            if self.target_object == 'apple':
+                name_left = 'left/apple_center'
+                name_right = 'right/apple_center'
+            elif self.target_object == 'orange':
+                name_left = 'left/orange_center'
+                name_right = 'right/orange_center'
+            elif self.target_object == 'cup':
+                name_left = 'left/cup_center'
+                name_right = 'right/cup_center'
+            else:
+                name_left = 'left/wine_center'
+                name_right = 'right/wine_center'
+
+            # Подписка на топики с изображениями левой и правой камер
+            self.left_subscription = node.create_subscription(
+                Point,
+                name_left,
+                self.left_callback,
+                10
+            )
+
+            self.right_subscription = node.create_subscription(
+                Point,
+                name_right,
+                self.right_callback,
+                10
+            )
+
+            self.triangulator_sub = node.create_subscription(
+            PointStamped,
+            '/triangulated_object_center',
+            self.triangulator_callback,
+            10
+        )
+            
+            time.sleep(0.5)
+
+            while not self.stop_flag and not self.flag_object_lost:
+                if self.turn_left_flag:
+                    if not self.published_left:
+                        rotate_msg = Twist()
+                        rotate_msg.angular.z = -0.05
+                        cmd_vel_publisher.publish(rotate_msg)
+                        self.published_left = True
+                        self.published_right = False
+                elif self.turn_right_flag:
+                    if not self.published_right:
+                        rotate_msg = Twist()
+                        rotate_msg.angular.z = 0.05
+                        cmd_vel_publisher.publish(rotate_msg)
+                        self.published_right = True
+                        self.published_left = False
+                
+                self.delay_with_callbacks(node=node, delay_seconds=0.1)
+            
+            # Останавливаемся
+            stop_msg = Twist()
+            cmd_vel_publisher.publish(stop_msg)
+            self.delay_with_callbacks(node=node, delay_seconds=1)
+
+            if self.flag_object_lost:
+                node.get_logger().warn(f'Объект {self.target_object} потерян ищу занова')
+                return 'object_lost'
+            
+            node.get_logger().info(f'Выравнивание с {self.target_object} завершено')
+            return 'aligned'
+            
+        except Exception as e:
+            node.get_logger().error(f'Ошибка в состоянии выравнивания: {e}')
+            return 'failure'
+        finally:
+            node.destroy_node()
+
+    def triangulator_callback(self, msg: PointStamped):
+        if not math.isnan(msg.point.x) and not math.isnan(msg.point.y) and not math.isnan(msg.point.z):
+            if abs(msg.point.y) < 0.03:
+                self.stop_flag = True
+            
+            if msg.point.y < 0:
+                self.turn_right_flag = True
+                self.turn_left_flag = False
+            else:
+                self.turn_left_flag = True
+                self.turn_right_flag = False
+
+    def left_callback(self, msg: Point):
+        if math.isnan(msg.x) or math.isnan(msg.y):
+            self.counter_left += 1
+        else:
+            self.counter_left = 0
+
+        if self.counter_left > 10:
+            self.flag_object_lost = True
+            
+
+    def right_callback(self, msg: Point):
+        if math.isnan(msg.x) or math.isnan(msg.y):
+            self.counter_right += 1
+        else:
+            self.counter_right = 0
+
+        if self.counter_right > 10:
+            self.flag_object_lost = True
+
+    def delay_with_callbacks(self, node, delay_seconds):
+        """Задержка с обработкой колбэков"""
+        start_time = time.time()
+        while rclpy.ok() and (time.time() - start_time) < delay_seconds:
+            # Обрабатываем колбэки в течение короткого таймаута
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+
+class ClosingState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['closed', 'object_lost', 'failure'])
+        self.target_object = target_object
+        self.node = None
+        self.flag_object_lost = False
+        self.counter = 0
+        self.flag_stop = False
+        self.transformed_points_queue = []
+        self.thread = None
+        self.lock = threading.Lock()
+        self.point_from_trng = None
+        self.point_updated = False
+        
+    def execute(self, userdata):
+        self.node = rclpy.create_node('closing_state')
+        
+        try:
+            self.node.get_logger().info(f'=== СБЛИЖЕНИЕ С ОБЪЕКТОМ: {self.target_object} ===')
+
+            self.client = self.node.create_client(CoordinateTransform, 'coordinate_transform')
+            while not self.client.wait_for_service(timeout_sec=1.0):
+                self.node.get_logger().info('Service not available, waiting again...')
+            
+            cmd_vel_publisher = self.node.create_publisher(Twist, '/cmd_vel', 10)
+
+            self.triangulator_sub = self.node.create_subscription(
+                PointStamped,
+                '/triangulated_object_center',
+                self.triangulator_callback,
+                10
+            )
+            
+            time.sleep(0.5)
+            twist_msg = Twist()
+            twist_msg.linear.x = 0.1
+            cmd_vel_publisher.publish(twist_msg)
+
+            # Главный цикл
+            self.thread = threading.Thread(target=self.transform_point_thread,daemon=True)
+            self.thread.start()
+
+            while rclpy.ok() and not self.flag_stop and not self.flag_object_lost:
+                # Проверяем преобразованные точки
+                with self.lock:
+                    if self.transformed_points_queue:
+                        point = self.transformed_points_queue.pop(0)
+                        if point.y < 0.45:
+                            self.flag_stop = True
+                            self.node.get_logger().info(f'Достигнуто целевое расстояние: {point.y}')
+                
+                self.delay_with_callbacks(node=self.node,delay_seconds=0.1)
+            
+            stop_msg = Twist()
+            cmd_vel_publisher.publish(stop_msg)
+            time.sleep(1)
+
+            if self.flag_object_lost:
+                return 'object_lost'
+            
+            return 'closed'
+            
+        except Exception as e:
+            self.node.get_logger().error(f'Ошибка: {e}')
+            return 'failure'
+        finally:
+            self.node.destroy_node()
+
+    def triangulator_callback(self, msg: PointStamped):
+        if math.isnan(msg.point.x) or math.isnan(msg.point.y) or math.isnan(msg.point.z):
+            self.counter += 1
+        else:
+            self.counter = 0
+            with self.lock:
+                self.point_from_trng = msg.point
+                self.point_updated = True
+
+        if self.counter > 10:
+            self.flag_object_lost = True
+
+    def delay_with_callbacks(self, node, delay_seconds):
+        """Задержка с обработкой колбэков"""
+        start_time = time.time()
+        while rclpy.ok() and (time.time() - start_time) < delay_seconds:
+            # Обрабатываем колбэки в течение короткого таймаута
+            rclpy.spin_once(node, timeout_sec=0.1)
+
+    def transform_point_thread(self):
+        """Преобразование координат в отдельном потоке"""
+        point = None
+        updated = False
+        while True:
+            with self.lock:
+                if self.point_updated:
+                    self.point_updated = False
+                    updated = True
+                    point = self.point_from_trng
+            
+            if updated:
+                updated = False
+                try:
+                    request = CoordinateTransform.Request()
+                    request.point = point
+                    request.source_frame = 'base_link'
+                    request.target_frame = 'arm_link'
+                    
+                    future = self.client.call_async(request)
+                    rclpy.spin_until_future_complete(self.node, future)
+                    
+                    if future.result() is not None:
+                        transformed_point = future.result().transformed_point
+                        with self.lock:
+                            self.transformed_points_queue.append(transformed_point)
+                    else:
+                        self.node.get_logger().error('Ошибка преобразования')
+                except Exception as e:
+                    self.node.get_logger().error(f'Ошибка в потоке преобразования: {e}')
+
+            time.sleep(0.1)
+
+
+
+class FinishState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['completed'])
+        self.target_object = target_object
+        
+    def execute(self, userdata):
+        # Создаем временный узел
+        node = rclpy.create_node('finish_state')
+        
+        try:
+            node.get_logger().info('=== ЗАДАЧА ВЫПОЛНЕНА ===')
+            node.get_logger().info(f'Объект {self.target_object} успешно захвачен в обеих камерах!')
+            
+            # Можно опубликовать финальное сообщение или выполнить другие действия
+            return 'completed'
+            
+        finally:
+            node.destroy_node()
+
+
+def main():
+    # Обработка аргументов командной строки
+    if len(sys.argv) < 2:
+        return
+    
+    target_object = sys.argv[1]
+    valid_objects = ['apple', 'orange', 'cup', 'wine glass']
+    
+    if target_object not in valid_objects:
+        print(f"Ошибка: неизвестный объект '{target_object}'")
+        print("Доступные объекты:", ', '.join(valid_objects))
+        return
+    
+    rclpy.init()
+    
+    # Создаем конечный автомат
+    sm = smach.StateMachine(outcomes=['task_completed', 'task_failed'])
+    
+    with sm:
+        # Добавляем состояния, передавая только target_object
+        smach.StateMachine.add('INITIAL', InitialState(target_object),
+                               transitions={'success': 'SEARCHING',
+                                           'failure': 'task_failed'})
+        
+        smach.StateMachine.add('SEARCHING', SearchingState(target_object),
+                               transitions={'object_found': 'ALIGNMENT',
+                                           'failure': 'task_failed'})
+        
+        smach.StateMachine.add('ALIGNMENT', AlignmentState(target_object),
+                               transitions={'aligned': 'CLOSING',
+                                           'object_lost': 'SEARCHING',
+                                           'failure': 'task_failed'})
+        
+        smach.StateMachine.add('CLOSING', ClosingState(target_object),
+                               transitions={'closed': 'FINISH',
+                                           'object_lost': 'SEARCHING',
+                                           'failure': 'task_failed'})
+        
+        smach.StateMachine.add('FINISH', FinishState(target_object),
+                               transitions={'completed': 'task_completed'})
+    
+    # Создаем introspection сервер для визуализации в rqt
+    sis = smach_ros.IntrospectionServer('youbot_state_machine', sm, '/YOUROT_SM')
+    sis.start()
+    
+    # Создаем временный узел для основного логгера
+    main_node = rclpy.create_node('state_machine_main')
+    main_node.get_logger().info(f'Запуск конечного автомата YouBot для объекта: {target_object}')
+    main_node.get_logger().info('Для визуализации запустите: rqt')
+    
+    try:
+        # Запускаем выполнение автомата
+        outcome = sm.execute()
+        main_node.get_logger().info(f'Конечный автомат завершил работу с результатом: {outcome}')
+        
+    except KeyboardInterrupt:
+        main_node.get_logger().info('Получен сигнал прерывания')
+    except Exception as e:
+        main_node.get_logger().error(f'Ошибка в конечном автомате: {e}')
+    finally:
+        # Всегда останавливаем introspection сервер
+        sis.stop()
+        main_node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

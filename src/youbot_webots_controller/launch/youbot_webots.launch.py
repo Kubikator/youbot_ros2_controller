@@ -3,7 +3,7 @@
 # ============================================================================
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 import os
@@ -23,7 +23,7 @@ def generate_launch_description():
     
     webots_controller_arg = DeclareLaunchArgument(
         'webots_controller',
-        default_value='webots_ros2_bridge',
+        default_value='webots_ros2_bridge_node.py',
         description='Name of Webots controller'
     )
 
@@ -33,9 +33,6 @@ def generate_launch_description():
         name='webots',
         output='screen'
     )
-    
-    # Даем время Webots запуститься перед запуском контроллера
-    from launch.actions import TimerAction
     
     # Webots ROS2 контроллер (запускаем с задержкой)
     webots_controller_process = TimerAction(
@@ -55,7 +52,7 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='platform_velocity_controller',
+                executable='platform_velocity_controller_node.py',
                 name='platform_velocity_controller',
                 output='screen',
                 parameters=[
@@ -73,7 +70,7 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='youbot_odometry',
+                executable='youbot_odometry_node.py',
                 name='youbot_odometry',
                 output='screen'
             )
@@ -98,7 +95,7 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='youbot_arm_controller',
+                executable='youbot_arm_controller_node.py',
                 name='youbot_arm_controller',
                 output='screen'
             )
@@ -111,7 +108,7 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='gripper_controller',
+                executable='gripper_controller_node.py',
                 name='gripper_controller',
                 output='screen'
             )
@@ -123,7 +120,7 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='image_processor',
+                executable='image_processor_node.py',
                 name='image_processor',
                 output='screen'
             )
@@ -135,8 +132,20 @@ def generate_launch_description():
         actions=[
             Node(
                 package='youbot_webots_controller',
-                executable='triangulator_node',
+                executable='triangulator_node.py',
                 name='triangulator_node',
+                output='screen'
+            )
+        ]
+    )
+
+    coordinate_transform_service = TimerAction(
+        period=10.0,
+        actions=[
+            Node(
+                package='youbot_webots_controller',
+                executable='coordinate_transform_service.py',
+                name='coordinate_transform_service',
                 output='screen'
             )
         ]
@@ -152,5 +161,6 @@ def generate_launch_description():
         arm_controller,
         gripper_controller,
         image_processor,
-        triangulator_node
+        triangulator_node,
+        coordinate_transform_service
     ])
