@@ -13,7 +13,7 @@ class GripperController(Node):
         # Параметры схвата (взято из gripper.c)
         self.MIN_POS = 0.0
         self.MAX_POS = 0.025
-        self.OFFSET_WHEN_LOCKED = 0.021
+        self.OFFSET_WHEN_LOCKED = 0.06
         self.MAX_GAP = 2 * self.MAX_POS + self.OFFSET_WHEN_LOCKED
         self.MIN_GAP = 2 * self.MIN_POS + self.OFFSET_WHEN_LOCKED
         

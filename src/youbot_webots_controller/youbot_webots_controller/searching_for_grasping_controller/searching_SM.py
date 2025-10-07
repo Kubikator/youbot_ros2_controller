@@ -4,7 +4,8 @@ import rclpy
 import sys
 import smach
 import smach_ros
-from geometry_msgs.msg import Twist, Point, PointStamped
+from geometry_msgs.msg import Twist, Point, PointStamped, Pose
+from std_msgs.msg import Float64
 from youbot_webots_controller.srv import CoordinateTransform
 import time
 import math
@@ -287,7 +288,7 @@ class AlignmentState(smach.State):
 
 class ClosingState(smach.State):
     def __init__(self, target_object):
-        smach.State.__init__(self, outcomes=['closed', 'object_lost', 'failure'])
+        smach.State.__init__(self, outcomes=['closed', 'object_lost', 'failure'],output_keys=['target_point'])
         self.target_object = target_object
         self.node = None
         self.flag_object_lost = False
@@ -340,7 +341,13 @@ class ClosingState(smach.State):
             
             stop_msg = Twist()
             cmd_vel_publisher.publish(stop_msg)
-            time.sleep(1)
+            self.delay_with_callbacks(node=self.node,delay_seconds=1)
+
+            # После остановки и задержки в секундку снова смотрим какая целевая точка получилась (если этого не сделать, то точка может быть смещена вперед)
+            with self.lock:
+                point = self.transformed_points_queue[-1]
+                userdata.target_point = point
+                self.node.get_logger().info(f'Целевая точка захвата: {point}')
 
             if self.flag_object_lost:
                 return 'object_lost'
@@ -390,6 +397,8 @@ class ClosingState(smach.State):
                     request.point = point
                     request.source_frame = 'base_link'
                     request.target_frame = 'arm_link'
+
+                    self.node.get_logger().info(f' Точка в base_link: {point}')
                     
                     future = self.client.call_async(request)
                     rclpy.spin_until_future_complete(self.node, future)
@@ -398,12 +407,128 @@ class ClosingState(smach.State):
                         transformed_point = future.result().transformed_point
                         with self.lock:
                             self.transformed_points_queue.append(transformed_point)
+                            self.node.get_logger().info(f' Точка в arm_link: {transformed_point}')
                     else:
                         self.node.get_logger().error('Ошибка преобразования')
                 except Exception as e:
                     self.node.get_logger().error(f'Ошибка в потоке преобразования: {e}')
 
             time.sleep(0.1)
+
+class ManipMovingState(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['moved', 'failure'], input_keys=['target_point'])
+        
+        self.node = None
+        self.counter = 0
+        self.current_point = Point()
+        
+    def execute(self, userdata):
+        self.node = rclpy.create_node('manip_moving_state')
+
+        target_point = userdata.target_point
+        
+        try:
+            self.node.get_logger().info(f'=== ДВИЖЕНИЕ МАНИПУЛЯТОРА В ТОЧКЕ: {target_point} ===')
+
+            gripper_cap_pub = self.node.create_publisher(Float64, '/gripper_target_gap', 10)
+
+            arm_target_point_pub = self.node.create_publisher(Pose, '/arm_target_pose', 10)
+
+            self.arm_current_point_sub = self.node.create_subscription(
+                Point,
+                '/arm_current_point',
+                self.arm_current_point_callback,
+                10
+            )
+            
+            # Задержка с целью того, чтобы пришла текущая точка манипулятора
+            i = 0
+            while i < 5:
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                i+=1
+
+            # Открываем ЗУ
+            f = Float64()
+            f.data = 0.12
+            gripper_cap_pub.publish(f)
+
+            # Планирование траектории
+            preGrapPoint = Pose()
+            preGrapPoint.position.x = self.current_point.x + (target_point.x - self.current_point.x)*0.75
+            preGrapPoint.position.y = self.current_point.y + (target_point.y - self.current_point.y)*0.75
+            preGrapPoint.position.z = self.current_point.z + (target_point.z - self.current_point.z)*0.75
+            preGrapPoint.orientation.x = 0.0
+            preGrapPoint.orientation.y = 0.0
+            preGrapPoint.orientation.z = 0.0
+            preGrapPoint.orientation.w = 1.0
+            arm_target_point_pub.publish(preGrapPoint)
+
+            self.node.get_logger().info(f'Точка предзахвата: {preGrapPoint}')
+
+            while self.counter < 20 and (self.current_point.x - preGrapPoint.position.x > 0.001 or 
+                                         self.current_point.y - preGrapPoint.position.y > 0.001 or 
+                                         self.current_point.z - preGrapPoint.position.z > 0.001):
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                arm_target_point_pub.publish(preGrapPoint)
+                self.counter += 1
+
+            if self.counter >= 20:
+                self.node.get_logger().error(f'Манипулятор не сдвинулся в течение 5 секунд')
+                return 'failure'
+
+            target_point_msg = Pose()
+            target_point_msg.position.x = target_point.x
+            target_point_msg.position.y = target_point.y
+            target_point_msg.position.z = target_point.z
+            target_point_msg.orientation.x = 0.0
+            target_point_msg.orientation.y = 0.0
+            target_point_msg.orientation.z = 0.0
+            target_point_msg.orientation.w = 1.0
+            arm_target_point_pub.publish(target_point_msg)
+
+            self.counter = 0
+            while self.counter < 10 and (self.current_point.x - target_point.x > 0.001 or 
+                                         self.current_point.y - target_point.y > 0.001 or 
+                                         self.current_point.z - target_point.z > 0.001):
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                arm_target_point_pub.publish(target_point_msg)
+                self.counter += 1
+
+            if self.counter >= 10:
+                self.node.get_logger().error(f'Манипулятор не сдвинулся в течение 5 секунд')
+                return 'failure'
+            
+            # Закрываем ЗУ
+            f = Float64()
+            f.data = 0.06
+            gripper_cap_pub.publish(f)
+
+            i = 0
+            while i < 5:
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.2)
+                i+=1
+            
+            return 'moved'
+            
+        except Exception as e:
+            self.node.get_logger().error(f'Ошибка: {e}')
+            return 'failure'
+        finally:
+            self.node.destroy_node()
+
+    def arm_current_point_callback(self, msg: Point):
+        self.current_point.x = msg.x
+        self.current_point.y = msg.y
+        self.current_point.z = msg.z
+
+
+    def delay_with_callbacks(self, node, delay_seconds):
+        """Задержка с обработкой колбэков"""
+        start_time = time.time()
+        while rclpy.ok() and (time.time() - start_time) < delay_seconds:
+            # Обрабатываем колбэки в течение короткого таймаута
+            rclpy.spin_once(node, timeout_sec=0.1)
 
 
 
@@ -444,6 +569,8 @@ def main():
     
     # Создаем конечный автомат
     sm = smach.StateMachine(outcomes=['task_completed', 'task_failed'])
+
+    sm.userdata.point_data = None
     
     with sm:
         # Добавляем состояния, передавая только target_object
@@ -461,9 +588,15 @@ def main():
                                            'failure': 'task_failed'})
         
         smach.StateMachine.add('CLOSING', ClosingState(target_object),
-                               transitions={'closed': 'FINISH',
+                               transitions={'closed': 'MANIPMOVING',
                                            'object_lost': 'SEARCHING',
-                                           'failure': 'task_failed'})
+                                           'failure': 'task_failed'},
+                                remapping={'target_point': 'point_data'})
+        
+        smach.StateMachine.add('MANIPMOVING', ManipMovingState(target_object),
+                               transitions={'moved': 'FINISH',
+                                           'failure': 'task_failed'},
+                                remapping={'target_point': 'point_data'})
         
         smach.StateMachine.add('FINISH', FinishState(target_object),
                                transitions={'completed': 'task_completed'})

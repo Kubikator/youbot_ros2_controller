@@ -12,7 +12,8 @@ class KukaYouBotKinematics:
         self.l2 = 0.155  # ARM2
         self.l3 = 0.135  # ARM3
         self.l4 = 0.081  # ARM4
-        self.l5 = 0.105  # ARM5
+        #self.l5 = 0.105  # ARM5
+        self.l5 = 0.09 + 0.08
         
     def forward_kinematics(self, joints):
         """
@@ -22,11 +23,11 @@ class KukaYouBotKinematics:
         """
         j1, j2, j3, j4, j5 = joints
         
-        y1 = self.l2 * np.cos(j2) + self.l3 * np.cos(j2 + j3) + (self.l4 + self.l5) * np.cos(j2 + j3 + j4)
-        z1 = self.l2 * np.sin(j2) + self.l3 * np.sin(j2 + j3) + (self.l4 + self.l5) * np.sin(j2 + j3 + j4)
+        y1 = self.l2 * np.sin(j2) + self.l3 * np.sin(j2 + j3) + (self.l4 + self.l5) * np.sin(j2 + j3 + j4)
+        z1 = self.l2 * np.cos(j2) + self.l3 * np.cos(j2 + j3) + (self.l4 + self.l5) * np.cos(j2 + j3 + j4)
         
-        x = -y1 * np.sin(j1)
-        y = y1 * np.cos(j1)
+        x = y1 * np.sin(j1)
+        y = -y1 * np.cos(j1)
         z = self.l1 + z1
         
         return np.array([x, y, z])

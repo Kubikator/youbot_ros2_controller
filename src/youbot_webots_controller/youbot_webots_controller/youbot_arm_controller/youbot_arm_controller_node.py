@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-from geometry_msgs.msg import Pose
+from geometry_msgs.msg import Pose, Point
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
 import numpy as np
@@ -43,6 +43,12 @@ class ArmKinematicsSolver(Node):
             'arm_target_positions',
             10
         )
+
+        self.arm_current_pos = self.create_publisher(
+            Point,
+            'arm_current_point',
+            10
+        )
         
         # Подписчики
         self.create_subscription(JointState, 'arm_joints_states',
@@ -61,6 +67,12 @@ class ArmKinematicsSolver(Node):
                     if joint_name in msg.name:
                         idx = msg.name.index(joint_name)
                         self.current_positions[i] = msg.position[idx]
+                        point = self.kinematics.forward_kinematics(joints=self.current_positions)
+                        msg_point = Point()
+                        msg_point.x = point[0]
+                        msg_point.y = point[1]
+                        msg_point.z = point[2]
+                        self.arm_current_pos.publish(msg_point)
         except Exception as e:
             self.get_logger().error(f'Error in joint_states_callback: {e}')
 
