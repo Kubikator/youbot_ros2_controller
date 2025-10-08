@@ -91,11 +91,10 @@ class Manipulator:
             t.transform.translation.z = 0.144 - 0.253 # Высота до второй оси вращений минус длина от первой оси до второй
             
             # Ориентация манипулятора
-            angle_rad = math.radians(-90)
             t.transform.rotation.x = 0.0
             t.transform.rotation.y = 0.0
-            t.transform.rotation.z = math.sin(angle_rad / 2)
-            t.transform.rotation.w = math.cos(angle_rad / 2)
+            t.transform.rotation.z = 0.0 
+            t.transform.rotation.w = 1.0
             
             # Публикуем трансформацию
             self.tf_broadcaster.sendTransform(t)

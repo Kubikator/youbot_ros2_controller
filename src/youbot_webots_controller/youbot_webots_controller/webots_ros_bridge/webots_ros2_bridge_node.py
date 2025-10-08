@@ -37,7 +37,7 @@ class WebotsRosBridge(Node):
             tf_prefix='left',           # Префикс для топиков и TF
             camera_offset_x=0.3,
             camera_offset_y=0.1,        # Смещение влево
-            camera_offset_z=0.1,
+            camera_offset_z=0.03,
             rotation_z=-10.0             # Поворот на 10 градусов
         )
         
@@ -48,7 +48,7 @@ class WebotsRosBridge(Node):
             tf_prefix='right',           # Префикс для топиков и TF
             camera_offset_x=0.3,
             camera_offset_y=-0.1,        # Смещение вправо
-            camera_offset_z=0.1,
+            camera_offset_z=0.03,
             rotation_z=10.0             # Поворот на -10 градусов
         )    
         

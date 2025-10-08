@@ -5,7 +5,7 @@ from geometry_msgs.msg import Pose, Point
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
 import numpy as np
-from youbot_webots_controller.youbot_arm_controller.arm_kinematic_solver import KukaYouBotKinematics
+from youbot_webots_controller.youbot_arm_controller.arm_kinematic_solver import KukaYouBotKinematic
 
 class ArmKinematicsSolver(Node):
     def __init__(self):
@@ -14,7 +14,7 @@ class ArmKinematicsSolver(Node):
         self.get_logger().info('Starting Arm Kinematics Solver...')
         
         # Инициализация класса кинематики
-        self.kinematics = KukaYouBotKinematics()
+        self.kinematics = KukaYouBotKinematic()
         
         # Параметры манипулятора YouBot
         self.arm_joint_names = [
@@ -67,7 +67,8 @@ class ArmKinematicsSolver(Node):
                     if joint_name in msg.name:
                         idx = msg.name.index(joint_name)
                         self.current_positions[i] = msg.position[idx]
-                        point = self.kinematics.forward_kinematics(joints=self.current_positions)
+                        T = (self.kinematics.forward_kinematic(joint_angles=self.current_positions))
+                        point = T[:3,3]
                         msg_point = Point()
                         msg_point.x = point[0]
                         msg_point.y = point[1]
@@ -105,15 +106,26 @@ class ArmKinematicsSolver(Node):
             qy = msg.orientation.y
             qz = msg.orientation.z
             qw = msg.orientation.w
+
+            rot_mat = self.quaternion_to_rotation_matrix([qx, qy, qz, qw])
             
-            # Преобразование кватерниона в углы Эйлера (pitch)
-            pitch = np.arcsin(2.0 * (qw * qy - qz * qx))
-            
-            self.get_logger().info(f'Received target pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, pitch={pitch:.3f}')
+            self.get_logger().info(f'Received target pose: x={x:.3f}, y={y:.3f}, z={z:.3f}')
             
             # Решение обратной кинематики
             target_pos = np.array([x, y, z])
-            joint_angles = self.kinematics.inverse_kinematics(target_pos, pitch)
+
+            target_orient = self.compute_target_orientation(target_pos, -np.pi/4)
+
+            self.get_logger().info(f'Target orientation: {target_orient}')
+
+            target_pose = np.eye(4)
+            target_pose[:3,:3] = target_orient
+            target_pose[:3,3] = target_pos
+            #joint_angles, success, error = self.kinematics.inverse_kinematic_multistart(target_pose)
+            joint_angles, success, error = self.kinematics.inverse_kinematic_trust_constr(target_pose=target_pose)
+
+            if not success:
+                self.get_logger().info(f'Численный метод не сошелся. Ошибка: {error}')
             
             # Проверяем и ограничиваем углы
             target_positions = []
@@ -135,6 +147,78 @@ class ArmKinematicsSolver(Node):
             self.get_logger().info(f'Sent target positions: {positions}')
         except Exception as e:
             self.get_logger().error(f'Error sending target positions: {e}')
+
+    def quaternion_to_rotation_matrix(self, quaternion):
+        """
+        Преобразует кватернион [x, y, z, w] в матрицу поворота 3x3
+        """
+        x, y, z, w = quaternion
+        
+        # Нормализуем кватернион
+        norm = np.sqrt(x*x + y*y + z*z + w*w)
+        if norm > 0:
+            x, y, z, w = x/norm, y/norm, z/norm, w/norm
+        
+        # Вычисляем матрицу поворота
+        xx, yy, zz = x*x, y*y, z*z
+        xy, xz, yz = x*y, x*z, y*z
+        wx, wy, wz = w*x, w*y, w*z
+        
+        rotation_matrix = np.array([
+            [1 - 2*(yy + zz),     2*(xy - wz),     2*(xz + wy)],
+            [2*(xy + wz),     1 - 2*(xx + zz),     2*(yz - wx)],
+            [2*(xz - wy),         2*(yz + wx),     1 - 2*(xx + yy)]
+        ])
+        
+        return rotation_matrix
+    
+    def compute_target_orientation(self, target_position, twist_angle=0.0):
+        
+        # Новая ось Z направлена от нуля мировой СК к целевой точке
+        z_axis = np.array(target_position)
+        z_axis[2] = 0.0
+        
+        # Нормализуем ось Z
+        if np.linalg.norm(z_axis) < 1e-6:
+            # Если цель в начале координат, используем ось Z по умолчанию
+            z_axis = np.array([0.0, 0.0, 1.0])
+        else:
+            z_axis = z_axis / np.linalg.norm(z_axis)
+        
+        # Новая ось X сонаправлена с мировой осью Z [0, 0, 1]
+        x_axis = np.array([0.0, 0.0, 1.0])
+        
+        # Если ось Z почти параллельна мировой Z (вертикальна), 
+        # то нужно выбрать другое направление для X
+        if abs(np.dot(z_axis, x_axis)) > 0.99:
+            # Если цель почти на вертикальной оси, используем мировую ось X для оси Y
+            x_axis = np.array([1.0, 0.0, 0.0])
+        else:
+            # В общем случае ось X = мировая ось Z
+            x_axis = np.array([0.0, 0.0, 1.0])
+        
+        # Ось Y = Z × X (правило правой тройки)
+        y_axis = np.cross(z_axis, x_axis)
+        y_axis = y_axis / np.linalg.norm(y_axis)
+        
+        # Создаем базовую матрицу поворота
+        rotation_matrix = np.column_stack([x_axis, y_axis, z_axis])
+        
+        # Применяем поворот вокруг новой оси Y
+        if abs(twist_angle) > 1e-6:
+            # Матрица поворота вокруг локальной оси Y
+            cos_a = np.cos(twist_angle)
+            sin_a = np.sin(twist_angle)
+            Ry = np.array([
+                [cos_a, 0, sin_a],
+                [0, 1, 0],
+                [-sin_a, 0, cos_a]
+            ])
+            
+            # Применяем поворот к текущей ориентации
+            rotation_matrix = rotation_matrix @ Ry
+        
+        return rotation_matrix
 
 
 def main(args=None):

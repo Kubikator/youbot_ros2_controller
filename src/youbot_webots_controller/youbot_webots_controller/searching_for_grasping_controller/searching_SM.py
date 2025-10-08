@@ -10,6 +10,7 @@ from youbot_webots_controller.srv import CoordinateTransform
 import time
 import math
 import threading
+import numpy as np
 
 class InitialState(smach.State):
     def __init__(self, target_object):
@@ -333,7 +334,7 @@ class ClosingState(smach.State):
                 with self.lock:
                     if self.transformed_points_queue:
                         point = self.transformed_points_queue.pop(0)
-                        if point.y < 0.45:
+                        if point.x < 0.5:
                             self.flag_stop = True
                             self.node.get_logger().info(f'Достигнуто целевое расстояние: {point.y}')
                 
@@ -397,8 +398,6 @@ class ClosingState(smach.State):
                     request.point = point
                     request.source_frame = 'base_link'
                     request.target_frame = 'arm_link'
-
-                    self.node.get_logger().info(f' Точка в base_link: {point}')
                     
                     future = self.client.call_async(request)
                     rclpy.spin_until_future_complete(self.node, future)
@@ -407,7 +406,6 @@ class ClosingState(smach.State):
                         transformed_point = future.result().transformed_point
                         with self.lock:
                             self.transformed_points_queue.append(transformed_point)
-                            self.node.get_logger().info(f' Точка в arm_link: {transformed_point}')
                     else:
                         self.node.get_logger().error('Ошибка преобразования')
                 except Exception as e:
@@ -458,17 +456,23 @@ class ManipMovingState(smach.State):
             preGrapPoint.position.x = self.current_point.x + (target_point.x - self.current_point.x)*0.75
             preGrapPoint.position.y = self.current_point.y + (target_point.y - self.current_point.y)*0.75
             preGrapPoint.position.z = self.current_point.z + (target_point.z - self.current_point.z)*0.75
-            preGrapPoint.orientation.x = 0.0
-            preGrapPoint.orientation.y = 0.0
-            preGrapPoint.orientation.z = 0.0
-            preGrapPoint.orientation.w = 1.0
+
+            # Вычисляем ориентацию схвата
+            rotation_matrix = self.compute_target_orientation([preGrapPoint.position.x, preGrapPoint.position.y, preGrapPoint.position.z], -np.pi/6)
+            quat = self.rotation_matrix_to_quaternion(rotation_matrix)
+
+            preGrapPoint.orientation.x = quat[0]
+            preGrapPoint.orientation.y = quat[1]
+            preGrapPoint.orientation.z = quat[2]
+            preGrapPoint.orientation.w = quat[3]
             arm_target_point_pub.publish(preGrapPoint)
 
             self.node.get_logger().info(f'Точка предзахвата: {preGrapPoint}')
 
-            while self.counter < 20 and (self.current_point.x - preGrapPoint.position.x > 0.001 or 
-                                         self.current_point.y - preGrapPoint.position.y > 0.001 or 
-                                         self.current_point.z - preGrapPoint.position.z > 0.001):
+            while self.counter < 20 and (self.current_point.x - preGrapPoint.position.x > 0.01 or 
+                                         self.current_point.y - preGrapPoint.position.y > 0.01 or 
+                                         self.current_point.z - preGrapPoint.position.z > 0.01):
+                self.node.get_logger().info(f'Текущая точка манипулятора: {self.current_point}')
                 self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
                 arm_target_point_pub.publish(preGrapPoint)
                 self.counter += 1
@@ -481,16 +485,26 @@ class ManipMovingState(smach.State):
             target_point_msg.position.x = target_point.x
             target_point_msg.position.y = target_point.y
             target_point_msg.position.z = target_point.z
-            target_point_msg.orientation.x = 0.0
-            target_point_msg.orientation.y = 0.0
-            target_point_msg.orientation.z = 0.0
-            target_point_msg.orientation.w = 1.0
+
+            rotation_matrix = self.compute_target_orientation([target_point_msg.position.x, 
+                                                                               target_point_msg.position.y, target_point_msg.position.z], 
+                                                                               -np.pi/6)
+            quat = self.rotation_matrix_to_quaternion(rotation_matrix)
+
+            target_point_msg.orientation.x = quat[0]
+            target_point_msg.orientation.y = quat[1]
+            target_point_msg.orientation.z = quat[2]
+            target_point_msg.orientation.w = quat[3]
+
             arm_target_point_pub.publish(target_point_msg)
 
+            self.node.get_logger().info(f'Точка захвата: {target_point_msg}')
+
             self.counter = 0
-            while self.counter < 10 and (self.current_point.x - target_point.x > 0.001 or 
-                                         self.current_point.y - target_point.y > 0.001 or 
-                                         self.current_point.z - target_point.z > 0.001):
+            while self.counter < 10 and (self.current_point.x - target_point.x > 0.01 or 
+                                         self.current_point.y - target_point.y > 0.01 or 
+                                         self.current_point.z - target_point.z > 0.01):
+                self.node.get_logger().info(f'Текущая точка манипулятора: {self.current_point}')
                 self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
                 arm_target_point_pub.publish(target_point_msg)
                 self.counter += 1
@@ -529,6 +543,95 @@ class ManipMovingState(smach.State):
         while rclpy.ok() and (time.time() - start_time) < delay_seconds:
             # Обрабатываем колбэки в течение короткого таймаута
             rclpy.spin_once(node, timeout_sec=0.1)
+
+    def compute_target_orientation(self, target_position, twist_angle=0.0):
+        
+        # Новая ось Z направлена от нуля мировой СК к целевой точке
+        z_axis = np.array(target_position)
+        
+        # Нормализуем ось Z
+        if np.linalg.norm(z_axis) < 1e-6:
+            # Если цель в начале координат, используем ось Z по умолчанию
+            z_axis = np.array([0.0, 0.0, 1.0])
+        else:
+            z_axis = z_axis / np.linalg.norm(z_axis)
+        
+        # Новая ось X сонаправлена с мировой осью Z [0, 0, 1]
+        x_axis = np.array([0.0, 0.0, 1.0])
+        
+        # Если ось Z почти параллельна мировой Z (вертикальна), 
+        # то нужно выбрать другое направление для X
+        if abs(np.dot(z_axis, x_axis)) > 0.99:
+            # Если цель почти на вертикальной оси, используем мировую ось X для оси Y
+            x_axis = np.array([1.0, 0.0, 0.0])
+        else:
+            # В общем случае ось X = мировая ось Z
+            x_axis = np.array([0.0, 0.0, 1.0])
+        
+        # Ось Y = Z × X (правило правой тройки)
+        y_axis = np.cross(z_axis, x_axis)
+        y_axis = y_axis / np.linalg.norm(y_axis)
+        
+        # Пересчитываем ось X = Y × Z для точной ортогональности
+        x_axis = np.cross(y_axis, z_axis)
+        x_axis = x_axis / np.linalg.norm(x_axis)
+        
+        # Создаем базовую матрицу поворота
+        rotation_matrix = np.column_stack([x_axis, y_axis, z_axis])
+        
+        # Применяем поворот вокруг новой оси Y
+        if abs(twist_angle) > 1e-6:
+            # Матрица поворота вокруг локальной оси Y
+            cos_a = np.cos(twist_angle)
+            sin_a = np.sin(twist_angle)
+            Ry = np.array([
+                [cos_a, 0, sin_a],
+                [0, 1, 0],
+                [-sin_a, 0, cos_a]
+            ])
+            
+            # Применяем поворот к текущей ориентации
+            rotation_matrix = rotation_matrix @ Ry
+        
+        return rotation_matrix
+    
+    def rotation_matrix_to_quaternion(self, rotation_matrix):
+
+        # Убедимся, что матрица ортонормированная
+        if abs(np.linalg.det(rotation_matrix) - 1.0) > 1e-6:
+            U, _, Vt = np.linalg.svd(rotation_matrix)
+            rotation_matrix = U @ Vt
+        
+        m = rotation_matrix
+        trace = m[0, 0] + m[1, 1] + m[2, 2]
+        
+        if trace > 0:
+            S = np.sqrt(trace + 1.0) * 2
+            w = 0.25 * S
+            x = (m[2, 1] - m[1, 2]) / S
+            y = (m[0, 2] - m[2, 0]) / S
+            z = (m[1, 0] - m[0, 1]) / S
+        elif (m[0, 0] > m[1, 1]) and (m[0, 0] > m[2, 2]):
+            S = np.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2
+            w = (m[2, 1] - m[1, 2]) / S
+            x = 0.25 * S
+            y = (m[0, 1] + m[1, 0]) / S
+            z = (m[0, 2] + m[2, 0]) / S
+        elif m[1, 1] > m[2, 2]:
+            S = np.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2
+            w = (m[0, 2] - m[2, 0]) / S
+            x = (m[0, 1] + m[1, 0]) / S
+            y = 0.25 * S
+            z = (m[1, 2] + m[2, 1]) / S
+        else:
+            S = np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2
+            w = (m[1, 0] - m[0, 1]) / S
+            x = (m[0, 2] + m[2, 0]) / S
+            y = (m[1, 2] + m[2, 1]) / S
+            z = 0.25 * S
+        
+        return np.array([x, y, z, w])
+
 
 
 

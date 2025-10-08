@@ -59,11 +59,6 @@ class CoordinateTransformService(Node):
             # Заполняем ответ
             response.transformed_point = transformed_point_stamped.point
             
-            self.get_logger().info(
-                f'Transformed point: '
-                f'({response.transformed_point.x}, {response.transformed_point.y}, {response.transformed_point.z})'
-            )
-            
             return response
             
         except TransformException as e:
