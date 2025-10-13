@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Optional
 
 class ObjectDetector:
     
-    def __init__(self, model_path: str = '../../models/yolo11n.pt', confidence_threshold: float = 0.5):
+    def __init__(self, model_path: str = '../../models/best.pt', confidence_threshold: float = 0.5):
 
         print(f"Загрузка модели YOLO: {model_path}...")
         self.model = YOLO(model_path)
@@ -19,17 +19,15 @@ class ObjectDetector:
         # Цвета для отрисовки bbox (BGR формат)
         self.colors = {
             # Ваши оригинальные цвета (сохранены)
-            'orange': (0, 255, 0),           # зеленый
-            'apple': (255, 0, 0),           # синий
-            'cup': (0, 165, 255),            # оранжевый
-            'wine glass': (147, 20, 255),    # розовый
+            'green_cyl': (0, 255, 0),           # зеленый
+            'blue_cyl': (255, 0, 0),           # синий
             'default': (255, 255, 255)
         }
         
         print("Модель успешно загружена!")
 
     def get_classes(self):
-        return ['orange', 'apple', 'cup', 'wine glass', 'default']
+        return ['green_cyl', 'blue_cyl', 'default']
     
     def detect(self, image: np.ndarray) -> Tuple[np.ndarray, List[Dict]]:
         # Копируем изображение для отрисовки

@@ -20,8 +20,8 @@ class ImageProcessor(Node):
 
         # Создаем классы асинхронной обработки изображений для двух камер
         self.get_logger().info('Start to initialize object detectors...')
-        self.left_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt',confidence_threshold=0.6)
-        self.right_processor = AsyncObjectDetector('src/youbot_webots_controller/models/yolo11n.pt',confidence_threshold=0.6)
+        self.left_processor = AsyncObjectDetector('src/youbot_webots_controller/models/best.pt',confidence_threshold=0.6)
+        self.right_processor = AsyncObjectDetector('src/youbot_webots_controller/models/best.pt',confidence_threshold=0.6)
         self.get_logger().info('Finish to initialize object detectors')
         
         # Подписка на топики с изображениями левой и правой камер
@@ -47,17 +47,11 @@ class ImageProcessor(Node):
         self.left_center_pub = self.create_publisher(Point, 'left/object_center', 10)
         self.right_center_pub = self.create_publisher(Point, 'right/object_center', 10)
 
-        self.left_orange_center_pub = self.create_publisher(Point, 'left/orange_center', 10)
-        self.right_orange_center_pub = self.create_publisher(Point, 'right/orange_center', 10)
+        self.left_blue_cyl_center_pub = self.create_publisher(Point, 'left/blue_cyl_center', 10)
+        self.right_blue_cyl_center_pub = self.create_publisher(Point, 'right/blue_cyl_center', 10)
 
-        self.left_apple_center_pub = self.create_publisher(Point, 'left/apple_center', 10)
-        self.right_apple_center_pub = self.create_publisher(Point, 'right/apple_center', 10)
-
-        self.left_cup_center_pub = self.create_publisher(Point, 'left/cup_center', 10)
-        self.right_cup_center_pub = self.create_publisher(Point, 'right/cup_center', 10)
-
-        self.left_wine_center_pub = self.create_publisher(Point, 'left/wine_center', 10)
-        self.right_wine_center_pub = self.create_publisher(Point, 'right/wine_center', 10)
+        self.left_green_cyl_center_pub = self.create_publisher(Point, 'left/green_cyl_center', 10)
+        self.right_green_cyl_center_pub = self.create_publisher(Point, 'right/green_cyl_center', 10)
 
         # Разделяемые данные для левой камеры
         self._left_thread = Thread(target=self._left_run, daemon=True)
@@ -164,14 +158,10 @@ class ImageProcessor(Node):
                         else:
                             center_x, center_y = float('nan'), float('nan')
 
-                        if cl == 'orange':
-                            self._publish_object_center(center_x, center_y, self.left_orange_center_pub, "Left")
-                        elif cl == 'apple':
-                            self._publish_object_center(center_x, center_y, self.left_apple_center_pub, "Left")
-                        elif cl == 'cup':
-                            self._publish_object_center(center_x, center_y, self.left_cup_center_pub, "Left")
-                        elif cl == 'wine glass':
-                            self._publish_object_center(center_x, center_y, self.left_wine_center_pub, "Left")
+                        if cl == 'blue_cyl':
+                            self._publish_object_center(center_x, center_y, self.left_blue_cyl_center_pub, "Left")
+                        elif cl == 'green_cyl':
+                            self._publish_object_center(center_x, center_y, self.left_green_cyl_center_pub, "Left")
                     
                     result = self.left_processor.get_highest_confidence_center()
                     if result is not None:
@@ -215,14 +205,10 @@ class ImageProcessor(Node):
                         else:
                             center_x, center_y = float('nan'), float('nan')
 
-                        if cl == 'orange':
-                            self._publish_object_center(center_x, center_y, self.right_orange_center_pub, "Right")
-                        elif cl == 'apple':
-                            self._publish_object_center(center_x, center_y, self.right_apple_center_pub, "Right")
-                        elif cl == 'cup':
-                            self._publish_object_center(center_x, center_y, self.right_cup_center_pub, "Right")
-                        elif cl == 'wine glass':
-                            self._publish_object_center(center_x, center_y, self.right_wine_center_pub, "Right")
+                        if cl == 'blue_cyl':
+                            self._publish_object_center(center_x, center_y, self.right_blue_cyl_center_pub, "Right")
+                        elif cl == 'green_cyl':
+                            self._publish_object_center(center_x, center_y, self.right_green_cyl_center_pub, "Right")
                     
                     result = self.right_processor.get_highest_confidence_center()
                     if result is not None:

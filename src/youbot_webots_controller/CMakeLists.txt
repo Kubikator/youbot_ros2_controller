@@ -38,6 +38,7 @@ install(PROGRAMS
   youbot_webots_controller/triangulator/triangulator_node.py
   youbot_webots_controller/searching_for_grasping_controller/searching_SM.py
   youbot_webots_controller/coordinate_transform/coordinate_transform_service.py
+  youbot_webots_controller/image_saver.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

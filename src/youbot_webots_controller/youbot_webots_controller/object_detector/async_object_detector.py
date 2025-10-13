@@ -18,7 +18,7 @@ class DetectorState(Enum):
 class AsyncObjectDetector:
 
     
-    def __init__(self, model_path: str = '../../models/yolo11n.pt', 
+    def __init__(self, model_path: str = '../../models/best.pt', 
                  confidence_threshold: float = 0.5):
         
         self.detector = ObjectDetector(model_path, confidence_threshold)

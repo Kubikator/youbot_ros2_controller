@@ -10,7 +10,7 @@ class KukaYouBotKinematic:
             [0.155, 0, 0, np.pi/2],          # Joint 2  
             [0.135, 0, 0, 0],                # Joint 3
             [0, np.pi/2, 0, np.pi/2],        # Joint 4
-            [0, 0, 0.27, 0]                  # Joint 5
+            [0, 0, 0.205, 0]                  # Joint 5
         ]
         
         # Ограничения на углы сочленений (в радианах)

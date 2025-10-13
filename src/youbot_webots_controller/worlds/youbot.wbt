@@ -55,9 +55,59 @@ WorldInfo {
   ]
 }
 Viewpoint {
-  orientation 0.1820172192815876 0.5483690944694963 -0.8161869075865547 0.8316320381419173
-  position -2.037437293156571 0.2765706400192821 0.5233091256892367
+  orientation -0.11355492548181953 0.6512317276507105 0.7503349357452905 0.3052116448102028
+  position -3.1081711502290936 -0.1443821210187213 0.34138149782633104
   follow "youBot"
+}
+Solid {
+  translation -2.32 0.06 0.02
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0 0 1
+        roughness 0.7
+        metalness 0
+      }
+      geometry Cylinder {
+        height 0.04
+        radius 0.02
+      }
+    }
+  ]
+  name "grippable_blue_cylinder"
+  boundingObject Cylinder {
+    height 0.04
+    radius 0.02
+  }
+  physics Physics {
+    density -1
+    mass 0.1
+  }
+}
+Solid {
+  translation -1.42 0.47 0.02
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0 1 0
+        roughness 0.7
+        metalness 0
+      }
+      geometry Cylinder {
+        height 0.04
+        radius 0.02
+      }
+    }
+  ]
+  name "grippable_green_cylinder"
+  boundingObject Cylinder {
+    height 0.04
+    radius 0.02
+  }
+  physics Physics {
+    density -1
+    mass 0.1
+  }
 }
 Pose {
   translation 0.3 0 0
@@ -84,8 +134,7 @@ Glass {
   rotation 7.243480848402475e-11 1 2.2275545922106297e-10 5.510145587985245e-06
 }
 Apple {
-  translation -5.526777118368237 -1.0509086900431035 0.1698822800175882
-  rotation 0.7329293581322495 0.6652132366064027 -0.14249879238605054 2.6784107338082546
+  translation -3.00722 0.518696 0.054447
 }
 TexturedBackground {
 }
@@ -96,7 +145,6 @@ Floor {
 }
 Orange {
   translation -1.17455 -0.19363 0.0467616
-  rotation 0.5912442534630162 -0.5002654709104686 0.6325857185881513 1.935286905947762
 }
 Worktop {
   translation -5.39 -1.29 0.03
@@ -266,11 +314,11 @@ Wall {
   name "wall(15)"
 }
 Robot {
-  translation -1.77946 -0.178341 0.103087
-  rotation 0.5594909920790062 0.3541749949857675 0.7493529893910351 -0.004955307179586477
+  translation -1.89706 -0.47612 0.103716
+  rotation -0.0016796603387904153 0.000880531177604672 0.9999982017013788 2.09068
   children [
     Camera {
-      translation 0.3 -0.1 0.03
+      translation 0.3 -0.1 -0.05
       rotation 0 0 1 0.174533
       name "camera_right"
       fieldOfView 1
@@ -278,7 +326,7 @@ Robot {
       height 480
     }
     Camera {
-      translation 0.3 0.1 0.03
+      translation 0.3 0.1 -0.05
       rotation 0 0 1 -0.174533
       name "camera_left"
       fieldOfView 1
@@ -324,8 +372,8 @@ Robot {
             }
           ]
           endPoint Solid {
-            translation 7.25203752963413e-05 2.433790935738331e-08 0.07431241058366223
-            rotation -0.07221584692967485 0.9916148666829171 -0.1071672880390778 3.4783281088991815e-06
+            translation 7.252037529634144e-05 2.4337909357383367e-08 0.07431241058366223
+            rotation -0.07221581042870028 0.9916143654783913 -0.10717195015960834 3.4783281088991815e-06
             children [
               Arm1Mesh {
               }
@@ -443,30 +491,6 @@ Robot {
                                           translation 0 1.333274426490066e-09 0.09
                                           rotation 1 0 0 4.71239
                                           children [
-                                            Solid {
-                                              translation 0 -0.08 0.03
-                                              rotation 0.7071072811860408 -1.223050486354381e-06 0.7071062811856431 -3.1415853071795863
-                                              children [
-                                                Shape {
-                                                  appearance DEF GRAY PBRAppearance {
-                                                    baseColor 0.7 0.7 0.7
-                                                    roughness 0.7
-                                                    metalness 0
-                                                  }
-                                                  geometry Box {
-                                                    size 0.01 0.15 0.05
-                                                  }
-                                                }
-                                              ]
-                                              name "Jaw1"
-                                              boundingObject Box {
-                                                size 0.01 0.08 0.05
-                                              }
-                                              physics Physics {
-                                                density -1
-                                                mass 0.08
-                                              }
-                                            }
                                             FingerMesh {
                                             }
                                           ]
@@ -523,30 +547,6 @@ Robot {
                                           translation 0 1.3332588878059123e-09 0.09
                                           rotation 0 -0.7071067811865476 0.7071067811865476 3.14159
                                           children [
-                                            Solid {
-                                              translation 0 -0.08 0.03
-                                              rotation 1.73445e-06 -1 -6.97981e-07 1.5708
-                                              children [
-                                                Shape {
-                                                  appearance DEF GRAY PBRAppearance {
-                                                    baseColor 0.7 0.7 0.7
-                                                    roughness 0.7
-                                                    metalness 0
-                                                  }
-                                                  geometry Box {
-                                                    size 0.01 0.15 0.05
-                                                  }
-                                                }
-                                              ]
-                                              name "Jaw2"
-                                              boundingObject Box {
-                                                size 0.01 0.08 0.05
-                                              }
-                                              physics Physics {
-                                                density -1
-                                                mass 0.08
-                                              }
-                                            }
                                             FingerMesh {
                                             }
                                           ]

@@ -81,6 +81,18 @@ class PlatformControllerGui(QWidget):
                 self.b_clockwise.pressed.connect(lambda: self.qnode.publish_velocity(angular_z=  self.angular_speed))
                 self.b_clockwise.released.connect(self.qnode.stop_robot)
                 self.qnode.get_logger().info("b_clockwise connected to QNode")
+
+            if hasattr(self, 'b_left'):
+                self.qnode.get_logger().info("b_left connected to QNode...")
+                self.b_left.pressed.connect(lambda: self.qnode.publish_velocity(linear_y=  -self.linear_speed))
+                self.b_left.released.connect(self.qnode.stop_robot)
+                self.qnode.get_logger().info("b_left connected to QNode")
+
+            if hasattr(self, 'b_right'):
+                self.qnode.get_logger().info("b_right connected to QNode...")
+                self.b_right.pressed.connect(lambda: self.qnode.publish_velocity(linear_y=  self.linear_speed))
+                self.b_right.released.connect(self.qnode.stop_robot)
+                self.qnode.get_logger().info("b_right connected to QNode")
                 
             self.qnode.get_logger().info("All signals connected to QNode")
             

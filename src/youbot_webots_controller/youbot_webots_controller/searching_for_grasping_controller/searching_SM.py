@@ -57,18 +57,12 @@ class SearchingState(smach.State):
             name_left = ''
             name_right = ''
 
-            if self.target_object == 'apple':
-                name_left = 'left/apple_center'
-                name_right = 'right/apple_center'
-            elif self.target_object == 'orange':
-                name_left = 'left/orange_center'
-                name_right = 'right/orange_center'
-            elif self.target_object == 'cup':
-                name_left = 'left/cup_center'
-                name_right = 'right/cup_center'
-            else:
-                name_left = 'left/wine_center'
-                name_right = 'right/wine_center'
+            if self.target_object == 'blue_cyl':
+                name_left = 'left/blue_cyl_center'
+                name_right = 'right/blue_cyl_center'
+            elif self.target_object == 'green_cyl':
+                name_left = 'left/green_cyl_center'
+                name_right = 'right/green_cyl_center'
 
             # Подписка на топики с изображениями левой и правой камер
             self.left_subscription = self.node.create_subscription(
@@ -92,6 +86,8 @@ class SearchingState(smach.State):
             # Публикуем команду вращения
             twist_msg = Twist()
             twist_msg.angular.z = 0.3  # rad/s
+            cmd_vel_publisher.publish(twist_msg)
+            cmd_vel_publisher.publish(twist_msg)
             cmd_vel_publisher.publish(twist_msg)
             self.published_right = True
             
@@ -175,18 +171,12 @@ class AlignmentState(smach.State):
             name_left = ''
             name_right = ''
 
-            if self.target_object == 'apple':
-                name_left = 'left/apple_center'
-                name_right = 'right/apple_center'
-            elif self.target_object == 'orange':
-                name_left = 'left/orange_center'
-                name_right = 'right/orange_center'
-            elif self.target_object == 'cup':
-                name_left = 'left/cup_center'
-                name_right = 'right/cup_center'
-            else:
-                name_left = 'left/wine_center'
-                name_right = 'right/wine_center'
+            if self.target_object == 'blue_cyl':
+                name_left = 'left/blue_cyl_center'
+                name_right = 'right/blue_cyl_center'
+            elif self.target_object == 'green_cyl':
+                name_left = 'left/green_cyl_center'
+                name_right = 'right/green_cyl_center'
 
             # Подписка на топики с изображениями левой и правой камер
             self.left_subscription = node.create_subscription(
@@ -334,9 +324,9 @@ class ClosingState(smach.State):
                 with self.lock:
                     if self.transformed_points_queue:
                         point = self.transformed_points_queue.pop(0)
-                        if point.x < 0.5:
+                        if point.x < 0.4:
                             self.flag_stop = True
-                            self.node.get_logger().info(f'Достигнуто целевое расстояние: {point.y}')
+                            self.node.get_logger().info(f'Достигнуто целевое расстояние: {point.x}')
                 
                 self.delay_with_callbacks(node=self.node,delay_seconds=0.1)
             
@@ -412,6 +402,86 @@ class ClosingState(smach.State):
                     self.node.get_logger().error(f'Ошибка в потоке преобразования: {e}')
 
             time.sleep(0.1)
+
+class ManipMoveWork(smach.State):
+    def __init__(self, target_object):
+        smach.State.__init__(self, outcomes=['moved_work', 'failure'], input_keys=['target_point'])
+        
+        self.node = None
+        self.counter = 0
+        self.current_point = Point()
+        
+    def execute(self, userdata):
+        self.node = rclpy.create_node('manip_moving_working_state')
+
+        target_point = userdata.target_point
+        
+        try:
+            self.node.get_logger().info(f'=== ДВИЖЕНИЕ МАНИПУЛЯТОРА В РАБОЧЕЕ ПОЛОЖЕНИЕ ДЛЯ ЗАХВАТА: {target_point} ===')
+
+            arm_target_point_pub = self.node.create_publisher(Pose, '/arm_target_pose', 10)
+
+            self.arm_current_point_sub = self.node.create_subscription(
+                Point,
+                '/arm_current_point',
+                self.arm_current_point_callback,
+                10
+            )
+            
+            # Задержка с целью того, чтобы пришла текущая точка манипулятора
+            i = 0
+            while i < 5:
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                i+=1
+
+            # Планирование траектории
+            preGrapPoint = Pose()
+            preGrapPoint.position.x = 0.3
+            preGrapPoint.position.y = 0.0
+            preGrapPoint.position.z = 0.3
+
+            preGrapPoint.orientation.x = 0.0
+            preGrapPoint.orientation.y = math.sqrt(2)/2
+            preGrapPoint.orientation.z = 0.0
+            preGrapPoint.orientation.w = math.sqrt(2)/2
+            arm_target_point_pub.publish(preGrapPoint)
+
+            self.node.get_logger().info(f'Рабочее положение: {preGrapPoint}')
+
+            while self.counter < 20 and (self.current_point.x - preGrapPoint.position.x > 0.01 or 
+                                         self.current_point.y - preGrapPoint.position.y > 0.01 or 
+                                         self.current_point.z - preGrapPoint.position.z > 0.01):
+                self.node.get_logger().info(f'Текущая точка манипулятора: {self.current_point}')
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                arm_target_point_pub.publish(preGrapPoint)
+                self.counter += 1
+
+            if self.counter >= 20:
+                self.node.get_logger().error(f'Манипулятор не сдвинулся в течение 5 секунд')
+                return 'failure'
+            
+            return 'moved_work'
+
+            
+        except Exception as e:
+            self.node.get_logger().error(f'Ошибка: {e}')
+            return 'failure'
+        finally:
+            self.node.destroy_node()
+
+    def arm_current_point_callback(self, msg: Point):
+        self.current_point.x = msg.x
+        self.current_point.y = msg.y
+        self.current_point.z = msg.z
+
+
+    def delay_with_callbacks(self, node, delay_seconds):
+        """Задержка с обработкой колбэков"""
+        start_time = time.time()
+        while rclpy.ok() and (time.time() - start_time) < delay_seconds:
+            # Обрабатываем колбэки в течение короткого таймаута
+            rclpy.spin_once(node, timeout_sec=0.1)
+
 
 class ManipMovingState(smach.State):
     def __init__(self, target_object):
@@ -501,7 +571,7 @@ class ManipMovingState(smach.State):
             self.node.get_logger().info(f'Точка захвата: {target_point_msg}')
 
             self.counter = 0
-            while self.counter < 10 and (self.current_point.x - target_point.x > 0.01 or 
+            while self.counter < 20 and (self.current_point.x - target_point.x > 0.01 or 
                                          self.current_point.y - target_point.y > 0.01 or 
                                          self.current_point.z - target_point.z > 0.01):
                 self.node.get_logger().info(f'Текущая точка манипулятора: {self.current_point}')
@@ -509,19 +579,51 @@ class ManipMovingState(smach.State):
                 arm_target_point_pub.publish(target_point_msg)
                 self.counter += 1
 
-            if self.counter >= 10:
+            if self.counter >= 20:
                 self.node.get_logger().error(f'Манипулятор не сдвинулся в течение 5 секунд')
                 return 'failure'
             
             # Закрываем ЗУ
             f = Float64()
-            f.data = 0.06
+            f.data = 0.025
             gripper_cap_pub.publish(f)
 
             i = 0
-            while i < 5:
+            while i < 10:
                 self.delay_with_callbacks(node=self.node, delay_seconds=0.2)
                 i+=1
+
+            target_point_msg = Pose()
+            target_point_msg.position.x = 0.3
+            target_point_msg.position.y = 0.0
+            target_point_msg.position.z = 0.3
+
+            rotation_matrix = self.compute_target_orientation([target_point_msg.position.x, 
+                                                                               target_point_msg.position.y, target_point_msg.position.z], 
+                                                                               -np.pi/6)
+            quat = self.rotation_matrix_to_quaternion(rotation_matrix)
+
+            target_point_msg.orientation.x = quat[0]
+            target_point_msg.orientation.y = quat[1]
+            target_point_msg.orientation.z = quat[2]
+            target_point_msg.orientation.w = quat[3]
+
+            arm_target_point_pub.publish(target_point_msg)
+
+            self.node.get_logger().info(f'Точка подъёма захваченного объекта: {target_point_msg}')
+
+            self.counter = 0
+            while self.counter < 20 and (self.current_point.x - target_point.x > 0.01 or 
+                                         self.current_point.y - target_point.y > 0.01 or 
+                                         self.current_point.z - target_point.z > 0.01):
+                self.node.get_logger().info(f'Текущая точка манипулятора: {self.current_point}')
+                self.delay_with_callbacks(node=self.node, delay_seconds=0.5)
+                arm_target_point_pub.publish(target_point_msg)
+                self.counter += 1
+
+            if self.counter >= 20:
+                self.node.get_logger().error(f'Манипулятор не сдвинулся в течение 5 секунд')
+                return 'failure'
             
             return 'moved'
             
@@ -646,7 +748,7 @@ class FinishState(smach.State):
         
         try:
             node.get_logger().info('=== ЗАДАЧА ВЫПОЛНЕНА ===')
-            node.get_logger().info(f'Объект {self.target_object} успешно захвачен в обеих камерах!')
+            node.get_logger().info(f'Объект {self.target_object} успешно захвачен!')
             
             # Можно опубликовать финальное сообщение или выполнить другие действия
             return 'completed'
@@ -661,7 +763,7 @@ def main():
         return
     
     target_object = sys.argv[1]
-    valid_objects = ['apple', 'orange', 'cup', 'wine glass']
+    valid_objects = ['blue_cyl', 'green_cyl']
     
     if target_object not in valid_objects:
         print(f"Ошибка: неизвестный объект '{target_object}'")
@@ -691,14 +793,19 @@ def main():
                                            'failure': 'task_failed'})
         
         smach.StateMachine.add('CLOSING', ClosingState(target_object),
-                               transitions={'closed': 'MANIPMOVING',
+                               transitions={'closed': 'MANIPMOVINGWORK',
                                            'object_lost': 'SEARCHING',
                                            'failure': 'task_failed'},
                                 remapping={'target_point': 'point_data'})
         
+        smach.StateMachine.add('MANIPMOVINGWORK', ManipMoveWork(target_object),
+                               transitions={'moved_work': 'MANIPMOVING',
+                                           'failure': 'MANIPMOVINGWORK'},
+                                remapping={'target_point': 'point_data'})
+        
         smach.StateMachine.add('MANIPMOVING', ManipMovingState(target_object),
                                transitions={'moved': 'FINISH',
-                                           'failure': 'task_failed'},
+                                           'failure': 'MANIPMOVING'},
                                 remapping={'target_point': 'point_data'})
         
         smach.StateMachine.add('FINISH', FinishState(target_object),
